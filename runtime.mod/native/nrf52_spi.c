@@ -5,12 +5,54 @@
 #include "blitzmax/embedded_spi.h"
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
+#include <zephyr/dt-bindings/pinctrl/nrf-pinctrl.h>
 #include <zephyr/drivers/spi.h>
+#include <zephyr/sys/util.h>
 
-/* The Pro Micro board enables one SPI bus, with fixed devicetree pinctrl. */
-#define SPI_RX_PIN 39u  /* P1.07 */
-#define SPI_TX_PIN 34u  /* P1.02 */
-#define SPI_SCK_PIN 33u /* P1.01 */
+/* Pin routing is selected by the board DTS and optional build overlay. */
+#define BMX_PIN(psel) (((psel) >> NRF_PIN_POS) & NRF_PIN_MSK)
+#define BMX_FUN(psel) (((psel) >> NRF_FUN_POS) & NRF_FUN_MSK)
+#define BMX_GROUP(label) DT_CHILD(DT_NODELABEL(label), group1)
+#define BMX_PSEL(label, index) DT_PROP_BY_IDX(BMX_GROUP(label), psels, index)
+#define SPI_SCK_PIN BMX_PIN(BMX_PSEL(spi2_default, 0))
+#define SPI_TX_PIN BMX_PIN(BMX_PSEL(spi2_default, 1))
+#define SPI_RX_PIN BMX_PIN(BMX_PSEL(spi2_default, 2))
+#define BMX_VALID_SPI_PIN(pin) ((pin) < 48u && (pin) != 18u && \
+    (pin) != 24u && (pin) != 25u)
+#define BMX_OTHER_BUS_PIN(pin) ( \
+    (pin) == BMX_PIN(BMX_PSEL(uart0_default, 0)) || \
+    (pin) == BMX_PIN(BMX_PSEL(uart0_default, 1)) || \
+    (pin) == BMX_PIN(BMX_PSEL(uart0_default, 2)) || \
+    (pin) == BMX_PIN(BMX_PSEL(uart0_default, 3)) || \
+    (pin) == BMX_PIN(BMX_PSEL(i2c1_default, 0)) || \
+    (pin) == BMX_PIN(BMX_PSEL(i2c1_default, 1)) || \
+    (pin) == BMX_PIN(BMX_PSEL(pwm0_default, 0)) || \
+    (pin) == BMX_PIN(BMX_PSEL(bmx_pwm1_default, 0)))
+
+BUILD_ASSERT(DT_PROP_LEN(BMX_GROUP(spi2_default), psels) == 3,
+    "SPI2 needs SCK, MOSI and MISO pin assignments");
+BUILD_ASSERT(DT_PROP_LEN(BMX_GROUP(spi2_sleep), psels) == 3,
+    "SPI2 sleep routing must match the default routing");
+BUILD_ASSERT(BMX_FUN(BMX_PSEL(spi2_default, 0)) == NRF_FUN_SPIM_SCK &&
+    BMX_FUN(BMX_PSEL(spi2_default, 1)) == NRF_FUN_SPIM_MOSI &&
+    BMX_FUN(BMX_PSEL(spi2_default, 2)) == NRF_FUN_SPIM_MISO,
+    "SPI2 pin functions must be ordered SCK, MOSI, MISO");
+BUILD_ASSERT(BMX_FUN(BMX_PSEL(spi2_sleep, 0)) == NRF_FUN_SPIM_SCK &&
+    BMX_FUN(BMX_PSEL(spi2_sleep, 1)) == NRF_FUN_SPIM_MOSI &&
+    BMX_FUN(BMX_PSEL(spi2_sleep, 2)) == NRF_FUN_SPIM_MISO,
+    "SPI2 sleep pin functions must be ordered SCK, MOSI, MISO");
+BUILD_ASSERT(SPI_SCK_PIN == BMX_PIN(BMX_PSEL(spi2_sleep, 0)) &&
+    SPI_TX_PIN == BMX_PIN(BMX_PSEL(spi2_sleep, 1)) &&
+    SPI_RX_PIN == BMX_PIN(BMX_PSEL(spi2_sleep, 2)),
+    "SPI2 default and sleep pin routes must agree");
+BUILD_ASSERT(BMX_VALID_SPI_PIN(SPI_SCK_PIN) &&
+    BMX_VALID_SPI_PIN(SPI_TX_PIN) && BMX_VALID_SPI_PIN(SPI_RX_PIN),
+    "SPI2 cannot use reset, USB or out-of-range pins");
+BUILD_ASSERT(SPI_SCK_PIN != SPI_TX_PIN && SPI_SCK_PIN != SPI_RX_PIN &&
+    SPI_TX_PIN != SPI_RX_PIN, "SPI2 pins must be distinct");
+BUILD_ASSERT(!BMX_OTHER_BUS_PIN(SPI_SCK_PIN) &&
+    !BMX_OTHER_BUS_PIN(SPI_TX_PIN) && !BMX_OTHER_BUS_PIN(SPI_RX_PIN),
+    "SPI2 pins conflict with UART, I2C or PWM routing");
 #define SPI_ERROR (-1)
 #define SPI_INVALID_ARGUMENT (-5)
 

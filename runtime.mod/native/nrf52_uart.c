@@ -4,14 +4,64 @@
 #include "blitzmax/embedded_uart.h"
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
+#include <zephyr/dt-bindings/pinctrl/nrf-pinctrl.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/irq.h>
 #include <zephyr/kernel.h>
+#include <zephyr/sys/util.h>
 
-#define UART_TX_PIN 9u  /* P0.09, D10 */
-#define UART_RX_PIN 10u /* P0.10, D16 */
-#define UART_RTS_PIN 6u /* P0.06, D3 */
-#define UART_CTS_PIN 8u /* P0.08, D2 */
+#define BMX_UART_PIN(psel) (((psel) >> NRF_PIN_POS) & NRF_PIN_MSK)
+#define BMX_UART_FUN(psel) (((psel) >> NRF_FUN_POS) & NRF_FUN_MSK)
+#define BMX_UART_GROUP(label) DT_CHILD(DT_NODELABEL(label), group1)
+#define BMX_UART_PSEL(label, index) \
+    DT_PROP_BY_IDX(BMX_UART_GROUP(label), psels, index)
+#define UART_TX_PIN BMX_UART_PIN(BMX_UART_PSEL(uart0_default, 0))
+#define UART_RX_PIN BMX_UART_PIN(BMX_UART_PSEL(uart0_default, 1))
+#define UART_RTS_PIN BMX_UART_PIN(BMX_UART_PSEL(uart0_default, 2))
+#define UART_CTS_PIN BMX_UART_PIN(BMX_UART_PSEL(uart0_default, 3))
+#define BMX_UART_VALID_PIN(pin) ((pin) < 48u && (pin) != 18u && \
+    (pin) != 24u && (pin) != 25u)
+#define BMX_UART_OTHER_BUS_PIN(pin) ( \
+    (pin) == BMX_UART_PIN(BMX_UART_PSEL(spi2_default, 0)) || \
+    (pin) == BMX_UART_PIN(BMX_UART_PSEL(spi2_default, 1)) || \
+    (pin) == BMX_UART_PIN(BMX_UART_PSEL(spi2_default, 2)) || \
+    (pin) == BMX_UART_PIN(BMX_UART_PSEL(i2c1_default, 0)) || \
+    (pin) == BMX_UART_PIN(BMX_UART_PSEL(i2c1_default, 1)) || \
+    (pin) == BMX_UART_PIN(BMX_UART_PSEL(pwm0_default, 0)) || \
+    (pin) == BMX_UART_PIN(BMX_UART_PSEL(bmx_pwm1_default, 0)))
+
+BUILD_ASSERT(DT_PROP_LEN(BMX_UART_GROUP(uart0_default), psels) == 4,
+    "UART0 needs TX, RX, RTS and CTS pin assignments");
+BUILD_ASSERT(DT_PROP_LEN(BMX_UART_GROUP(uart0_sleep), psels) == 4,
+    "UART0 sleep routing must match the default routing");
+BUILD_ASSERT(BMX_UART_FUN(BMX_UART_PSEL(uart0_default, 0)) == NRF_FUN_UART_TX &&
+    BMX_UART_FUN(BMX_UART_PSEL(uart0_default, 1)) == NRF_FUN_UART_RX &&
+    BMX_UART_FUN(BMX_UART_PSEL(uart0_default, 2)) == NRF_FUN_UART_RTS &&
+    BMX_UART_FUN(BMX_UART_PSEL(uart0_default, 3)) == NRF_FUN_UART_CTS,
+    "UART0 pin functions must be ordered TX, RX, RTS, CTS");
+BUILD_ASSERT(BMX_UART_FUN(BMX_UART_PSEL(uart0_sleep, 0)) == NRF_FUN_UART_TX &&
+    BMX_UART_FUN(BMX_UART_PSEL(uart0_sleep, 1)) == NRF_FUN_UART_RX &&
+    BMX_UART_FUN(BMX_UART_PSEL(uart0_sleep, 2)) == NRF_FUN_UART_RTS &&
+    BMX_UART_FUN(BMX_UART_PSEL(uart0_sleep, 3)) == NRF_FUN_UART_CTS,
+    "UART0 sleep pin functions must be ordered TX, RX, RTS, CTS");
+BUILD_ASSERT(UART_TX_PIN == BMX_UART_PIN(BMX_UART_PSEL(uart0_sleep, 0)) &&
+    UART_RX_PIN == BMX_UART_PIN(BMX_UART_PSEL(uart0_sleep, 1)) &&
+    UART_RTS_PIN == BMX_UART_PIN(BMX_UART_PSEL(uart0_sleep, 2)) &&
+    UART_CTS_PIN == BMX_UART_PIN(BMX_UART_PSEL(uart0_sleep, 3)),
+    "UART0 default and sleep pin routes must agree");
+BUILD_ASSERT(BMX_UART_VALID_PIN(UART_TX_PIN) &&
+    BMX_UART_VALID_PIN(UART_RX_PIN) && BMX_UART_VALID_PIN(UART_RTS_PIN) &&
+    BMX_UART_VALID_PIN(UART_CTS_PIN),
+    "UART0 cannot use reset, USB or out-of-range pins");
+BUILD_ASSERT(UART_TX_PIN != UART_RX_PIN && UART_TX_PIN != UART_RTS_PIN &&
+    UART_TX_PIN != UART_CTS_PIN && UART_RX_PIN != UART_RTS_PIN &&
+    UART_RX_PIN != UART_CTS_PIN && UART_RTS_PIN != UART_CTS_PIN,
+    "UART0 pins must be distinct");
+BUILD_ASSERT(!BMX_UART_OTHER_BUS_PIN(UART_TX_PIN) &&
+    !BMX_UART_OTHER_BUS_PIN(UART_RX_PIN) &&
+    !BMX_UART_OTHER_BUS_PIN(UART_RTS_PIN) &&
+    !BMX_UART_OTHER_BUS_PIN(UART_CTS_PIN),
+    "UART0 pins conflict with SPI, I2C or PWM routing");
 #define UART_INVALID_ARGUMENT (-5)
 #define POLL_RX_DMA_SIZE 64u
 #define POLL_RX_RING_SIZE 256u

@@ -68,6 +68,8 @@ Set the Zephyr source and SDK paths in the installed BlitzMax SDK's `bin/custom.
 ```bmk
 addoption nrf52.zephyr "/path/to/zephyrproject/zephyr"
 addoption nrf52.sdk "/path/to/zephyr-sdk-1.0.1"
+# Optional: additional devicetree overlay for a custom pin route
+# addoption nrf52.overlay "/absolute/path/to/pins.overlay"
 ```
 
 | `custom.bmk` option | Environment equivalent | Purpose |
@@ -76,6 +78,7 @@ addoption nrf52.sdk "/path/to/zephyr-sdk-1.0.1"
 | `nrf52.sdk` | `ZEPHYR_SDK_INSTALL_DIR` | Zephyr SDK root |
 | `nrf52.venv` | `NRF52_VENV` | Workspace Python environment, when not beside the Zephyr source |
 | `nrf52.west` | `WEST` | `west` executable or its containing directory |
+| `nrf52.overlay` | `BMX_NRF52_EXTRA_OVERLAY_FILE` | Additional devicetree overlay applied after the built-in board overlay |
 
 `custom.bmk` takes precedence over environment variables. `bmk` automatically finds `west` and Python packages in the workspace's sibling `.venv`, so you do not need to activate it for each build. Host tools still need to be on `PATH`.
 
@@ -197,14 +200,18 @@ For example, a GPIO application imports `Embedded.Hardware.GPIO`; a BLE applicat
 | --- | --- |
 | Pin numbers | P0.00–P0.31 are 0–31; P1.00–P1.15 are 32–47. Confirm the carrier's pad labels before wiring. Reset pin 18 and USB pins 24–25 are reserved. |
 | ADC and PWM | ADC accepts P0.02–P0.05 and P0.28–P0.31. PWM routes to the LED at P0.15 and D4/P0.22. Avoid simultaneous claims on one pin. |
-| SPI | Controller 0: SCK P1.01, MOSI P1.02, MISO P1.07. Control chip select through GPIO. |
-| UART | Controller 0: TX D10/P0.09, RX D16/P0.10. Optional RTS/CTS: D3/P0.06 and D2/P0.08 together. Buffered UART needs `BRL.EventQueue`; do not mix buffered and polling access. |
-| I²C | Controller 0: SDA D8/P1.04, SCL D9/P1.06. Internal pull-ups are enabled; configure with `pullUps=True`. The driver timeout is 20 ms per message, even when a longer caller timeout is requested. |
+| SPI | Controller 0 defaults to SCK P1.01, MOSI P1.02, MISO P1.07. A build overlay can change these pins; `SPIDefaultClockPin()`, `SPIDefaultTXPin()`, and `SPIDefaultRXPin()` then report the selected route. Control chip select through GPIO. |
+| UART | Controller 0 defaults to TX D10/P0.09, RX D16/P0.10, RTS D3/P0.06, and CTS D2/P0.08. A build overlay can change these pins; pass the selected TX/RX pair to `UARTConfigurePins` and, if needed, both RTS/CTS pins to `UARTConfigureFlowControlPins`. Buffered UART needs `BRL.EventQueue`; do not mix buffered and polling access. |
+| I²C | Controller 0 defaults to SDA D8/P1.04 and SCL D9/P1.06. A build overlay can change these pins; `I2CDefaultSDAPin()` and `I2CDefaultSCLPin()` report the selected route. Internal pull-ups are enabled; configure with `pullUps=True`. The driver timeout is 20 ms per message, even when a longer caller timeout is requested. |
 | Watchdog | Once started, it cannot be disabled in software; a power cycle stops it. |
 | System OFF | `SystemOff()` and `SystemOffUntilGPIO()` stop the program. Wake restarts through the bootloader; save state before entering. There is no timer wake in System OFF. |
 | BLE | One connection, four local GATT services, eight local characteristics, and four stored bonds in the current configuration. |
 
 Advanced Zephyr Kconfig changes can be supplied through `BMX_NRF52_EXTRA_CONF_FILE`, set to the absolute path of an additional `.conf` file before building. The BLE fragment is still added automatically when the BLE module is imported.
+
+To build with a different peripheral route, set `BMX_NRF52_EXTRA_OVERLAY_FILE` to an absolute `.overlay` path, or set `nrf52.overlay` in `custom.bmk`. Sample overlays are provided for [SPI](examples/nrf52_spi_alt.overlay), [I²C](examples/nrf52_i2c_alt.overlay), and [UART](examples/nrf52_uart_alt.overlay). Each overlay changes both the default and sleep pinctrl states. The build checks pin functions, distinct pins, reserved reset and USB pins, and conflicts with other configured peripherals. Verify the carrier's pad labels before wiring it. Pin changes require a rebuild and upload.
+
+On a nice!nano v2 layout, the SPI sample selects SCK D6, MOSI D15, and MISO D14; connect D15 to D14 for the [`nrf52_spi.bmx`](examples/nrf52_spi.bmx) loopback check. The I²C sample selects SDA D7 and SCL D19; the [`nrf52_i2c.bmx`](examples/nrf52_i2c.bmx) example reads these pins from the build. The UART sample selects TX D6 and RX D7; connect those pads for the [`nrf52_uart_alt.bmx`](examples/nrf52_uart_alt.bmx) loopback check. UART also retains RTS D3 and CTS D2 in that sample.
 
 ## Troubleshooting
 

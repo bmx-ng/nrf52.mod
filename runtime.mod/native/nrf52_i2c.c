@@ -4,10 +4,49 @@
 #include "blitzmax/embedded_i2c.h"
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
+#include <zephyr/dt-bindings/pinctrl/nrf-pinctrl.h>
 #include <zephyr/drivers/i2c.h>
+#include <zephyr/sys/util.h>
 
-#define I2C_SDA_PIN 36u /* P1.04, D8 */
-#define I2C_SCL_PIN 38u /* P1.06, D9 */
+#define BMX_I2C_PIN(psel) (((psel) >> NRF_PIN_POS) & NRF_PIN_MSK)
+#define BMX_I2C_FUN(psel) (((psel) >> NRF_FUN_POS) & NRF_FUN_MSK)
+#define BMX_I2C_GROUP(label) DT_CHILD(DT_NODELABEL(label), group1)
+#define BMX_I2C_PSEL(label, index) \
+    DT_PROP_BY_IDX(BMX_I2C_GROUP(label), psels, index)
+#define I2C_SDA_PIN BMX_I2C_PIN(BMX_I2C_PSEL(i2c1_default, 0))
+#define I2C_SCL_PIN BMX_I2C_PIN(BMX_I2C_PSEL(i2c1_default, 1))
+#define BMX_I2C_VALID_PIN(pin) ((pin) < 48u && (pin) != 18u && \
+    (pin) != 24u && (pin) != 25u)
+#define BMX_I2C_OTHER_BUS_PIN(pin) ( \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(uart0_default, 0)) || \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(uart0_default, 1)) || \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(uart0_default, 2)) || \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(uart0_default, 3)) || \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(spi2_default, 0)) || \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(spi2_default, 1)) || \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(spi2_default, 2)) || \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(pwm0_default, 0)) || \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(bmx_pwm1_default, 0)))
+
+BUILD_ASSERT(DT_PROP_LEN(BMX_I2C_GROUP(i2c1_default), psels) == 2,
+    "I2C1 needs SDA and SCL pin assignments");
+BUILD_ASSERT(DT_PROP_LEN(BMX_I2C_GROUP(i2c1_sleep), psels) == 2,
+    "I2C1 sleep routing must match the default routing");
+BUILD_ASSERT(BMX_I2C_FUN(BMX_I2C_PSEL(i2c1_default, 0)) == NRF_FUN_TWIM_SDA &&
+    BMX_I2C_FUN(BMX_I2C_PSEL(i2c1_default, 1)) == NRF_FUN_TWIM_SCL,
+    "I2C1 pin functions must be ordered SDA, SCL");
+BUILD_ASSERT(BMX_I2C_FUN(BMX_I2C_PSEL(i2c1_sleep, 0)) == NRF_FUN_TWIM_SDA &&
+    BMX_I2C_FUN(BMX_I2C_PSEL(i2c1_sleep, 1)) == NRF_FUN_TWIM_SCL,
+    "I2C1 sleep pin functions must be ordered SDA, SCL");
+BUILD_ASSERT(I2C_SDA_PIN == BMX_I2C_PIN(BMX_I2C_PSEL(i2c1_sleep, 0)) &&
+    I2C_SCL_PIN == BMX_I2C_PIN(BMX_I2C_PSEL(i2c1_sleep, 1)),
+    "I2C1 default and sleep pin routes must agree");
+BUILD_ASSERT(BMX_I2C_VALID_PIN(I2C_SDA_PIN) &&
+    BMX_I2C_VALID_PIN(I2C_SCL_PIN) && I2C_SDA_PIN != I2C_SCL_PIN,
+    "I2C1 needs distinct non-reserved pins");
+BUILD_ASSERT(!BMX_I2C_OTHER_BUS_PIN(I2C_SDA_PIN) &&
+    !BMX_I2C_OTHER_BUS_PIN(I2C_SCL_PIN),
+    "I2C1 pins conflict with UART, SPI or PWM routing");
 #define I2C_ERROR (-1)
 #define I2C_TIMEOUT (-2)
 #define I2C_INVALID_ARGUMENT (-5)

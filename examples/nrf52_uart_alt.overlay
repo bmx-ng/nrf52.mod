@@ -1,0 +1,21 @@
+#include <zephyr/dt-bindings/pinctrl/nrf-pinctrl.h>
+
+/* UART0 on nice!nano v2 pads: TX D6/P1.00, RX D7/P0.11. */
+&uart0_default {
+    group1 {
+        psels = <NRF_PSEL(UART_TX, 1, 0)>,
+                <NRF_PSEL(UART_RX, 0, 11)>,
+                <NRF_PSEL(UART_RTS, 0, 6)>,
+                <NRF_PSEL(UART_CTS, 0, 8)>;
+    };
+};
+
+&uart0_sleep {
+    group1 {
+        psels = <NRF_PSEL(UART_TX, 1, 0)>,
+                <NRF_PSEL(UART_RX, 0, 11)>,
+                <NRF_PSEL(UART_RTS, 0, 6)>,
+                <NRF_PSEL(UART_CTS, 0, 8)>;
+        low-power-enable;
+    };
+};

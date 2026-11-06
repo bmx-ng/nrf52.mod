@@ -4,6 +4,8 @@ This ESP-IDF app responds at 7-bit address `0x42` with four bytes spelling `NRF!
 
 With both boards unplugged, connect nRF D8 to ESP `0`, nRF D9 to ESP `1`, and nRF GND to an ESP `G` pin. Power each board by its own USB cable; do not connect 3V3 or 5V between them. The nRF example uses 100 kHz and the internal pull-ups on both boards.
 
+For the alternate [nRF I²C route](../../../examples/nrf52_i2c_alt.overlay), connect nRF D7 to ESP `0` and nRF D19 to ESP `1`, with the same ground connection. Build the nRF example with that overlay selected.
+
 Build with ESP-IDF 6.1 preview support for ESP32-S31:
 
 ```sh
