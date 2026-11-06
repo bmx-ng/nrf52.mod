@@ -1,0 +1,14 @@
+/build*/
+.DS_Store
+**/.bmx/
+**/.generics/
+*.i
+*.i2
+*.a
+*.bmxbuild
+*.bmxbuild.stamp
+*.bin
+*.elf
+*.hex
+*.uf2
+*.map
