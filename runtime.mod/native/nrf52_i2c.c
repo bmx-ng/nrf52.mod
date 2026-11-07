@@ -50,7 +50,10 @@ BUILD_ASSERT(!BMX_I2C_OTHER_BUS_PIN(I2C_SDA_PIN) &&
 #define I2C_ERROR (-1)
 #define I2C_TIMEOUT (-2)
 #define I2C_INVALID_ARGUMENT (-5)
-#define I2C_DRIVER_TIMEOUT_US (CONFIG_I2C_TRANSFER_TIMEOUT_MS * 1000u)
+
+int bmx_nrf52_i2c_transfer_timeout(const struct device *dev,
+        struct i2c_msg *msgs, uint8_t num_msgs, uint16_t addr,
+        uint32_t timeout_us);
 
 static uint8_t pins_configured;
 static uint8_t initialized;
@@ -139,14 +142,26 @@ int32_t bmx_embedded_i2c_read_blocking(int32_t controller,
 
 int32_t bmx_embedded_i2c_write_timeout_us(int32_t controller,
         uint32_t address, void *data, int32_t length, uint32_t timeout_us) {
-    if (timeout_us < I2C_DRIVER_TIMEOUT_US) return I2C_INVALID_ARGUMENT;
-    return bmx_embedded_i2c_write_blocking(controller, address, data, length);
+    if (!valid_transfer(controller, address, data, length))
+        return I2C_INVALID_ARGUMENT;
+    struct i2c_msg msg = {
+        .buf = data, .len = (uint32_t)length,
+        .flags = I2C_MSG_WRITE | I2C_MSG_STOP,
+    };
+    return result(bmx_nrf52_i2c_transfer_timeout(i2c_device(), &msg, 1,
+        (uint16_t)address, timeout_us), length);
 }
 
 int32_t bmx_embedded_i2c_read_timeout_us(int32_t controller,
         uint32_t address, void *data, int32_t length, uint32_t timeout_us) {
-    if (timeout_us < I2C_DRIVER_TIMEOUT_US) return I2C_INVALID_ARGUMENT;
-    return bmx_embedded_i2c_read_blocking(controller, address, data, length);
+    if (!valid_transfer(controller, address, data, length))
+        return I2C_INVALID_ARGUMENT;
+    struct i2c_msg msg = {
+        .buf = data, .len = (uint32_t)length,
+        .flags = I2C_MSG_READ | I2C_MSG_STOP,
+    };
+    return result(bmx_nrf52_i2c_transfer_timeout(i2c_device(), &msg, 1,
+        (uint16_t)address, timeout_us), length);
 }
 
 int32_t bmx_embedded_i2c_write_read_blocking(int32_t controller,
@@ -163,7 +178,15 @@ int32_t bmx_embedded_i2c_write_read_blocking(int32_t controller,
 int32_t bmx_embedded_i2c_write_read_timeout_us(int32_t controller,
         uint32_t address, void *write_data, int32_t write_length,
         void *read_data, int32_t read_length, uint32_t timeout_us) {
-    if (timeout_us < 2u * I2C_DRIVER_TIMEOUT_US) return I2C_INVALID_ARGUMENT;
-    return bmx_embedded_i2c_write_read_blocking(controller, address,
-        write_data, write_length, read_data, read_length);
+    if (!valid_transfer(controller, address, write_data, write_length) ||
+            !valid_transfer(controller, address, read_data, read_length))
+        return I2C_INVALID_ARGUMENT;
+    struct i2c_msg msgs[2] = {
+        {.buf = write_data, .len = (uint32_t)write_length,
+            .flags = I2C_MSG_WRITE},
+        {.buf = read_data, .len = (uint32_t)read_length,
+            .flags = I2C_MSG_RESTART | I2C_MSG_READ | I2C_MSG_STOP},
+    };
+    return result(bmx_nrf52_i2c_transfer_timeout(i2c_device(), msgs, 2,
+        (uint16_t)address, timeout_us), read_length);
 }
