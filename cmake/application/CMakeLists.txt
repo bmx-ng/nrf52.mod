@@ -19,6 +19,13 @@ if("__bb_nrf52_network_ble_ble" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
     set(EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/ble.conf")
   endif()
 endif()
+if("__bb_embedded_network_thread_thread" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  if(DEFINED EXTRA_CONF_FILE)
+    list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.conf")
+  else()
+    set(EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.conf")
+  endif()
+endif()
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(blitzmax_nrf52_application C CXX)
@@ -85,6 +92,11 @@ target_sources(app PRIVATE
   "${BRL_BLITZ_ROOT}/ryu/ryu/f2s.c"
   "${BRL_BLITZ_ROOT}/ryu/ryu/d2s.c"
 )
+if("__bb_embedded_network_thread_thread" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  target_sources(app PRIVATE
+    "${EMBEDDED_ROOT}/network.mod/thread.mod/native/thread_openthread.c"
+    "${NRF52_ROOT}/network.mod/thread.mod/native/nrf52_thread.c")
+endif()
 target_compile_definitions(app PRIVATE RYU_OPTIMIZE_SIZE=1 BMX_EMBEDDED_ARENA_SIZE=65536u)
 target_include_directories(app PRIVATE
   "${EMBEDDED_ROOT}/runtime.mod/native/include"
