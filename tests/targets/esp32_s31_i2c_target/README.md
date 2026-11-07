@@ -14,3 +14,5 @@ idf.py --preview build
 ```
 
 The supplied `sdkconfig.defaults` selects 16 MB flash. Before replacing any existing ESP app, back up the active application partition and confirm the partition table. Flash only the app image at the active app offset, preserving the board's bootloader, partition table, OTA selection, and stored data. The board used for bring-up had an active `ota_0` partition at `0x10000`, but another board may differ.
+
+For the [external pull-up check](../../../examples/nrf52_i2c_external_pullups.bmx), build this responder with `idf.py --preview -D BMX_I2C_TARGET_INTERNAL_PULLUP=0 build`. That disables the ESP's internal pull-ups too. Add separate resistors from SDA and SCL to the nRF board's 3.3 V rail and pass `pullUps=False` in the nRF example. Keep the boards' grounds connected; do not connect their 3.3 V rails directly.

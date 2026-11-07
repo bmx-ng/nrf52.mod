@@ -95,7 +95,8 @@ uint32_t bmx_embedded_i2c_default_scl_pin(void) { return I2C_SCL_PIN; }
 int32_t bmx_embedded_i2c_configure_pins(int32_t controller,
         uint32_t sda_pin, uint32_t scl_pin, int32_t pull_ups) {
     if (!valid_controller(controller) || initialized ||
-            sda_pin != I2C_SDA_PIN || scl_pin != I2C_SCL_PIN || !pull_ups)
+            sda_pin != I2C_SDA_PIN || scl_pin != I2C_SCL_PIN ||
+            (!!pull_ups != !!DT_NODE_HAS_PROP(BMX_I2C_GROUP(i2c1_default), bias_pull_up)))
         return 0;
     pins_configured = 1;
     return 1;
