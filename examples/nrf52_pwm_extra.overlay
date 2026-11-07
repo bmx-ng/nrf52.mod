@@ -1,0 +1,39 @@
+/* Two additional independent PWM outputs on nice!nano v2 D6 and D7. */
+&pinctrl {
+    bmx_pwm2_default: bmx_pwm2_default {
+        group1 {
+            psels = <NRF_PSEL(PWM_OUT0, 1, 0)>;
+        };
+    };
+    bmx_pwm2_sleep: bmx_pwm2_sleep {
+        group1 {
+            psels = <NRF_PSEL(PWM_OUT0, 1, 0)>;
+            low-power-enable;
+        };
+    };
+    bmx_pwm3_default: bmx_pwm3_default {
+        group1 {
+            psels = <NRF_PSEL(PWM_OUT0, 0, 11)>;
+        };
+    };
+    bmx_pwm3_sleep: bmx_pwm3_sleep {
+        group1 {
+            psels = <NRF_PSEL(PWM_OUT0, 0, 11)>;
+            low-power-enable;
+        };
+    };
+};
+
+&pwm2 {
+    status = "okay";
+    pinctrl-0 = <&bmx_pwm2_default>;
+    pinctrl-1 = <&bmx_pwm2_sleep>;
+    pinctrl-names = "default", "sleep";
+};
+
+&pwm3 {
+    status = "okay";
+    pinctrl-0 = <&bmx_pwm3_default>;
+    pinctrl-1 = <&bmx_pwm3_sleep>;
+    pinctrl-names = "default", "sleep";
+};

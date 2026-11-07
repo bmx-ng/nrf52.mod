@@ -199,7 +199,7 @@ For example, a GPIO application imports `Embedded.Hardware.GPIO`; a BLE applicat
 | Feature | Current board setting or limit |
 | --- | --- |
 | Pin numbers | P0.00–P0.31 are 0–31; P1.00–P1.15 are 32–47. Confirm the carrier's pad labels before wiring. Reset pin 18 and USB pins 24–25 are reserved. |
-| ADC and PWM | ADC accepts P0.02–P0.05 and P0.28–P0.31. PWM routes to the LED at P0.15 and D4/P0.22. Avoid simultaneous claims on one pin. |
+| ADC and PWM | ADC accepts P0.02–P0.05 and P0.28–P0.31. PWM defaults to the LED at P0.15 and D4/P0.22. The [extra PWM overlay](examples/nrf52_pwm_extra.overlay) also enables D6/P1.00 and D7/P0.11, each on its own controller. Avoid simultaneous claims on one pin. |
 | SPI | Controller 0 defaults to SCK P1.01, MOSI P1.02, MISO P1.07. A build overlay can change these pins; `SPIDefaultClockPin()`, `SPIDefaultTXPin()`, and `SPIDefaultRXPin()` then report the selected route. Control chip select through GPIO. |
 | UART | Controller 0 defaults to TX D10/P0.09, RX D16/P0.10, RTS D3/P0.06, and CTS D2/P0.08. A build overlay can change these pins; pass the selected TX/RX pair to `UARTConfigurePins` and, if needed, both RTS/CTS pins to `UARTConfigureFlowControlPins`. Buffered UART needs `BRL.EventQueue`; do not mix buffered and polling access. |
 | I²C | Controller 0 defaults to SDA D8/P1.04 and SCL D9/P1.06. A build overlay can change these pins; `I2CDefaultSDAPin()` and `I2CDefaultSCLPin()` report the selected route. Internal pull-ups are enabled; configure with `pullUps=True`. Blocking calls retain a 20 ms limit per message. Timed calls use the requested deadline for the complete transfer, including repeated Start. |
@@ -212,6 +212,8 @@ Advanced Zephyr Kconfig changes can be supplied through `BMX_NRF52_EXTRA_CONF_FI
 To build with a different peripheral route, set `BMX_NRF52_EXTRA_OVERLAY_FILE` to an absolute `.overlay` path, or set `nrf52.overlay` in `custom.bmk`. Sample overlays are provided for [SPI](examples/nrf52_spi_alt.overlay), [I²C](examples/nrf52_i2c_alt.overlay), and [UART](examples/nrf52_uart_alt.overlay). Each overlay changes both the default and sleep pinctrl states. The build checks pin functions, distinct pins, reserved reset and USB pins, and conflicts with other configured peripherals. Verify the carrier's pad labels before wiring it. Pin changes require a rebuild and upload.
 
 On a nice!nano v2 layout, the SPI sample selects SCK D6, MOSI D15, and MISO D14; connect D15 to D14 for the [`nrf52_spi.bmx`](examples/nrf52_spi.bmx) loopback check. The I²C sample selects SDA D7 and SCL D19; the [`nrf52_i2c.bmx`](examples/nrf52_i2c.bmx) example reads these pins from the build. The UART sample selects TX D6 and RX D7; connect those pads for the [`nrf52_uart_alt.bmx`](examples/nrf52_uart_alt.bmx) loopback check. UART also retains RTS D3 and CTS D2 in that sample.
+
+The extra PWM overlay selects D6 and D7 for PWM2 and PWM3. Build it separately from the sample SPI, I²C, and UART route overlays, which also use those pads. The [`nrf52_pwm_extra.bmx`](examples/nrf52_pwm_extra.bmx) example checks both outputs in turn with D6 connected to D7.
 
 ## Troubleshooting
 
