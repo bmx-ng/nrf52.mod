@@ -6,8 +6,10 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/dt-bindings/pinctrl/nrf-pinctrl.h>
 #include <zephyr/drivers/uart.h>
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/irq.h>
 #include <zephyr/kernel.h>
+#include <zephyr/pm/device.h>
 #include <zephyr/sys/util.h>
 
 #define BMX_UART_PIN(psel) (((psel) >> NRF_PIN_POS) & NRF_PIN_MSK)
@@ -69,6 +71,7 @@ BUILD_ASSERT(!BMX_UART_OTHER_BUS_PIN(UART_TX_PIN) &&
 static uint8_t pins_configured;
 static uint8_t flow_pins_configured;
 static uint8_t initialized;
+static uint8_t break_active;
 static uint8_t translate_crlf;
 static uint8_t pending_valid;
 static uint8_t pending_byte;
@@ -84,6 +87,11 @@ static volatile uint8_t poll_rx_ready;
 
 static const struct device *uart_device(void) {
     return DEVICE_DT_GET(DT_NODELABEL(uart0));
+}
+
+static const struct device *tx_gpio_device(void) {
+    return UART_TX_PIN < 32u ? DEVICE_DT_GET(DT_NODELABEL(gpio0))
+        : DEVICE_DT_GET(DT_NODELABEL(gpio1));
 }
 
 static int valid_controller(int32_t controller) {
@@ -267,6 +275,7 @@ uint32_t bmx_embedded_uart_init(int32_t controller, uint32_t baudrate) {
     if (uart_configure(uart_device(), &config) != 0) return 0;
     if (!bmx_nrf52_uart_poll_resume()) return 0;
     initialized = 1;
+    break_active = 0;
     translate_crlf = 0;
     pending_valid = 0;
     errors = 0;
@@ -275,6 +284,7 @@ uint32_t bmx_embedded_uart_init(int32_t controller, uint32_t baudrate) {
 
 int32_t bmx_embedded_uart_deinit(int32_t controller) {
     if (!enabled(controller)) return 0;
+    if (break_active && !bmx_embedded_uart_set_break(controller, 0)) return 0;
     if (!bmx_nrf52_uart_poll_suspend()) return 0;
     initialized = 0;
     pending_valid = 0;
@@ -282,7 +292,7 @@ int32_t bmx_embedded_uart_deinit(int32_t controller) {
 }
 
 uint32_t bmx_embedded_uart_set_baudrate(int32_t controller, uint32_t baudrate) {
-    if (!enabled(controller) || !baudrate) return 0;
+    if (!enabled(controller) || break_active || !baudrate) return 0;
     struct uart_config config;
     if (uart_config_get(uart_device(), &config) != 0) return 0;
     config.baudrate = baudrate;
@@ -292,7 +302,7 @@ uint32_t bmx_embedded_uart_set_baudrate(int32_t controller, uint32_t baudrate) {
 
 int32_t bmx_embedded_uart_set_format(int32_t controller, uint32_t data_bits,
         uint32_t stop_bits, uint32_t parity) {
-    if (!enabled(controller) || data_bits != 8 || stop_bits != 1 || parity > 1)
+    if (!enabled(controller) || break_active || data_bits != 8 || stop_bits != 1 || parity > 1)
         return 0;
     struct uart_config config;
     if (uart_config_get(uart_device(), &config) != 0) return 0;
@@ -304,7 +314,7 @@ int32_t bmx_embedded_uart_set_format(int32_t controller, uint32_t data_bits,
 
 int32_t bmx_embedded_uart_set_flow_control(int32_t controller,
         int32_t cts, int32_t rts) {
-    if (!enabled(controller) || (!!cts != !!rts) ||
+    if (!enabled(controller) || break_active || (!!cts != !!rts) ||
             (cts && !flow_pins_configured)) return 0;
     struct uart_config config;
     if (uart_config_get(uart_device(), &config) != 0) return 0;
@@ -346,7 +356,7 @@ int32_t bmx_embedded_uart_is_readable_within_us(int32_t controller,
 
 int32_t bmx_embedded_uart_write_blocking(int32_t controller,
         const void *source, int32_t length) {
-    if (!enabled(controller) || length < 0 || (length && !source))
+    if (!enabled(controller) || break_active || length < 0 || (length && !source))
         return UART_INVALID_ARGUMENT;
     const uint8_t *bytes = source;
     for (int32_t i = 0; i < length; ++i) {
@@ -394,9 +404,35 @@ int32_t bmx_embedded_uart_tx_wait_blocking(int32_t controller) {
 }
 
 int32_t bmx_embedded_uart_set_break(int32_t controller, int32_t enabled_break) {
-    (void)controller;
-    (void)enabled_break;
-    return 0; /* Zephyr's polling nRF UARTE API does not expose TX break. */
+    extern int32_t bmx_embedded_uart_async_is_open(int32_t);
+    if (!enabled(controller) || bmx_embedded_uart_async_is_open(controller)) return 0;
+    if (!!enabled_break == !!break_active) return 1;
+    const struct device *port = tx_gpio_device();
+    if (!device_is_ready(port)) return 0;
+    uint32_t pin = UART_TX_PIN % 32u;
+    if (enabled_break) {
+        if (pending_valid || poll_rx_get != poll_rx_put) return 0;
+        if (!bmx_nrf52_uart_poll_suspend()) return 0;
+        if (pending_valid || poll_rx_get != poll_rx_put) {
+            (void)bmx_nrf52_uart_poll_resume();
+            return 0;
+        }
+        if (pm_device_action_run(uart_device(), PM_DEVICE_ACTION_SUSPEND) != 0) {
+            (void)bmx_nrf52_uart_poll_resume();
+            return 0;
+        }
+        if (gpio_pin_configure(port, pin, GPIO_OUTPUT_LOW) != 0) {
+            (void)pm_device_action_run(uart_device(), PM_DEVICE_ACTION_RESUME);
+            (void)bmx_nrf52_uart_poll_resume();
+            return 0;
+        }
+        break_active = 1;
+        return 1;
+    }
+    if (gpio_pin_configure(port, pin, GPIO_OUTPUT_HIGH) != 0) return 0;
+    if (pm_device_action_run(uart_device(), PM_DEVICE_ACTION_RESUME) != 0) return 0;
+    break_active = 0;
+    return bmx_nrf52_uart_poll_resume();
 }
 
 int32_t bmx_embedded_uart_set_translate_crlf(int32_t controller, int32_t value) {
