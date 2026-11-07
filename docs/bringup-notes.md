@@ -2,6 +2,12 @@
 
 These are the detailed implementation limits and on-board checks behind the concise [coding guide](../README.md#coding-for-nrf52). Hardware results refer to the Tenstar Robot ProMicro nRF52840 unless stated otherwise.
 
+## Linux ARM64 host build
+
+On an Ubuntu 26.04 ARM64 Parallels VM, the documented Zephyr 4.5.0 workspace and Zephyr SDK 1.0.1 installation completed with system Python 3.14. The build used an isolated copy of an existing Linux ARM64 BlitzMax SDK, rebuilt `bcc2` and `bmk2` from their nRF52 task branches, and staged the matching `blitzmax.mod`, `brl.mod`, `embedded.mod`, and `nrf52.mod` sources. The compiler IR regression test passed, and `bmk boardinfo` recognized `promicro_nrf52840`.
+
+The first application build found a missing `BRL.StandardIO` nRF52 binding in the Linux SDK copy. After the binding was committed to `brl.mod` and staged, `examples/nrf52_hello.bmx` built a valid 190,464-byte UF2 (95,212 B flash, 98,936 B RAM). The BLE GATT example built a valid 594,944-byte UF2 (297,424 B flash, 157,088 B RAM). The hello configuration had Bluetooth disabled; the GATT configuration had `CONFIG_BT=y`. Neither Linux image was uploaded from the VM, so this verifies host compilation and image generation, not Linux USB passthrough or flashing.
+
 The initial adapter has a 64 KiB static managed arena, a 16 KiB Zephyr main stack, USB CDC standard input and output, and one managed thread. GPIO, GPIO interrupts, hardware random, ADC, PWM, SPI, I²C, polling and buffered UART, watchdog, kernel-managed idle and timed sleep, and a BLE observer/central/peripheral subset are implemented. The Zephyr build reports final flash and RAM use; the hello example is a repeating USB serial greeting.
 
 `BRL.StandardIO.Input` receives bytes from Zephyr's USB CDC console. `examples/nrf52_usb_input.bmx` prompts for `PING`; the board reported `NRF52_USB_INPUT,read=pass` after the Mac sent that word over its USB serial port.

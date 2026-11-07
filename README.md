@@ -12,7 +12,7 @@ The Zephyr board qualifier is `promicro_nrf52840/nrf52840/uf2`. The target has b
 
 ## Requirements
 
-- A BlitzMax NG installation containing matching nRF52-enabled `bcc2`, `bmk`, `embedded.mod`, and `nrf52.mod` revisions.
+- A BlitzMax NG installation containing matching nRF52-enabled `bcc2`, `bmk2`, `blitzmax.mod`, `brl.mod`, `embedded.mod`, and `nrf52.mod` revisions.
 - Zephyr **4.5.0** and its west workspace, including the modules fetched by `west update`.
 - Zephyr SDK **1.0.1** with the ARM toolchain.
 - Host tools including CMake, Ninja, Python, and the devicetree compiler.
@@ -117,7 +117,7 @@ Install the host tools, then create the pinned Zephyr workspace and ARM SDK:
 
 ```sh
 sudo apt update
-sudo apt install --no-install-recommends git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1
+sudo apt install --no-install-recommends git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev
 python3 -m venv "$HOME/zephyrproject/.venv"
 source "$HOME/zephyrproject/.venv/bin/activate"
 python -m pip install west
@@ -130,7 +130,7 @@ cd zephyr
 west sdk install -d "$HOME/zephyr-sdk-1.0.1" -t arm-zephyr-eabi
 ```
 
-This package list is from Zephyr's Ubuntu setup. On ARM64 Linux, omit `gcc-multilib` and `g++-multilib`; for other distributions, use [Zephyr's Linux host-dependency guide](https://docs.zephyrproject.org/latest/develop/getting_started/installation_linux.html). In the installed BlitzMax SDK's `bin/custom.bmk`, replace `you` with your Linux username:
+This package list follows Zephyr's Ubuntu setup. On ARM64 Linux, omit `gcc-multilib` and `g++-multilib`; the `file` package installs the appropriate `libmagic` library for the Ubuntu release. For other distributions, use [Zephyr's Linux host-dependency guide](https://docs.zephyrproject.org/latest/develop/getting_started/installation_linux.html). In the installed BlitzMax SDK's `bin/custom.bmk`, replace `you` with your Linux username:
 
 ```text
 addoption nrf52.zephyr "/home/you/zephyrproject/zephyr"
