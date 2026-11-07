@@ -4,14 +4,56 @@
 #include "blitzmax/embedded_i2c.h"
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
+#include <zephyr/dt-bindings/pinctrl/nrf-pinctrl.h>
 #include <zephyr/drivers/i2c.h>
+#include <zephyr/sys/util.h>
 
-#define I2C_SDA_PIN 36u /* P1.04, D8 */
-#define I2C_SCL_PIN 38u /* P1.06, D9 */
+#define BMX_I2C_PIN(psel) (((psel) >> NRF_PIN_POS) & NRF_PIN_MSK)
+#define BMX_I2C_FUN(psel) (((psel) >> NRF_FUN_POS) & NRF_FUN_MSK)
+#define BMX_I2C_GROUP(label) DT_CHILD(DT_NODELABEL(label), group1)
+#define BMX_I2C_PSEL(label, index) \
+    DT_PROP_BY_IDX(BMX_I2C_GROUP(label), psels, index)
+#define I2C_SDA_PIN BMX_I2C_PIN(BMX_I2C_PSEL(i2c1_default, 0))
+#define I2C_SCL_PIN BMX_I2C_PIN(BMX_I2C_PSEL(i2c1_default, 1))
+#define BMX_I2C_VALID_PIN(pin) ((pin) < 48u && (pin) != 18u && \
+    (pin) != 24u && (pin) != 25u)
+#define BMX_I2C_OTHER_BUS_PIN(pin) ( \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(uart0_default, 0)) || \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(uart0_default, 1)) || \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(uart0_default, 2)) || \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(uart0_default, 3)) || \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(spi2_default, 0)) || \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(spi2_default, 1)) || \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(spi2_default, 2)) || \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(pwm0_default, 0)) || \
+    (pin) == BMX_I2C_PIN(BMX_I2C_PSEL(bmx_pwm1_default, 0)))
+
+BUILD_ASSERT(DT_PROP_LEN(BMX_I2C_GROUP(i2c1_default), psels) == 2,
+    "I2C1 needs SDA and SCL pin assignments");
+BUILD_ASSERT(DT_PROP_LEN(BMX_I2C_GROUP(i2c1_sleep), psels) == 2,
+    "I2C1 sleep routing must match the default routing");
+BUILD_ASSERT(BMX_I2C_FUN(BMX_I2C_PSEL(i2c1_default, 0)) == NRF_FUN_TWIM_SDA &&
+    BMX_I2C_FUN(BMX_I2C_PSEL(i2c1_default, 1)) == NRF_FUN_TWIM_SCL,
+    "I2C1 pin functions must be ordered SDA, SCL");
+BUILD_ASSERT(BMX_I2C_FUN(BMX_I2C_PSEL(i2c1_sleep, 0)) == NRF_FUN_TWIM_SDA &&
+    BMX_I2C_FUN(BMX_I2C_PSEL(i2c1_sleep, 1)) == NRF_FUN_TWIM_SCL,
+    "I2C1 sleep pin functions must be ordered SDA, SCL");
+BUILD_ASSERT(I2C_SDA_PIN == BMX_I2C_PIN(BMX_I2C_PSEL(i2c1_sleep, 0)) &&
+    I2C_SCL_PIN == BMX_I2C_PIN(BMX_I2C_PSEL(i2c1_sleep, 1)),
+    "I2C1 default and sleep pin routes must agree");
+BUILD_ASSERT(BMX_I2C_VALID_PIN(I2C_SDA_PIN) &&
+    BMX_I2C_VALID_PIN(I2C_SCL_PIN) && I2C_SDA_PIN != I2C_SCL_PIN,
+    "I2C1 needs distinct non-reserved pins");
+BUILD_ASSERT(!BMX_I2C_OTHER_BUS_PIN(I2C_SDA_PIN) &&
+    !BMX_I2C_OTHER_BUS_PIN(I2C_SCL_PIN),
+    "I2C1 pins conflict with UART, SPI or PWM routing");
 #define I2C_ERROR (-1)
 #define I2C_TIMEOUT (-2)
 #define I2C_INVALID_ARGUMENT (-5)
-#define I2C_DRIVER_TIMEOUT_US (CONFIG_I2C_TRANSFER_TIMEOUT_MS * 1000u)
+
+int bmx_nrf52_i2c_transfer_timeout(const struct device *dev,
+        struct i2c_msg *msgs, uint8_t num_msgs, uint16_t addr,
+        uint32_t timeout_us);
 
 static uint8_t pins_configured;
 static uint8_t initialized;
@@ -53,7 +95,8 @@ uint32_t bmx_embedded_i2c_default_scl_pin(void) { return I2C_SCL_PIN; }
 int32_t bmx_embedded_i2c_configure_pins(int32_t controller,
         uint32_t sda_pin, uint32_t scl_pin, int32_t pull_ups) {
     if (!valid_controller(controller) || initialized ||
-            sda_pin != I2C_SDA_PIN || scl_pin != I2C_SCL_PIN || !pull_ups)
+            sda_pin != I2C_SDA_PIN || scl_pin != I2C_SCL_PIN ||
+            (!!pull_ups != !!DT_NODE_HAS_PROP(BMX_I2C_GROUP(i2c1_default), bias_pull_up)))
         return 0;
     pins_configured = 1;
     return 1;
@@ -100,14 +143,26 @@ int32_t bmx_embedded_i2c_read_blocking(int32_t controller,
 
 int32_t bmx_embedded_i2c_write_timeout_us(int32_t controller,
         uint32_t address, void *data, int32_t length, uint32_t timeout_us) {
-    if (timeout_us < I2C_DRIVER_TIMEOUT_US) return I2C_INVALID_ARGUMENT;
-    return bmx_embedded_i2c_write_blocking(controller, address, data, length);
+    if (!valid_transfer(controller, address, data, length))
+        return I2C_INVALID_ARGUMENT;
+    struct i2c_msg msg = {
+        .buf = data, .len = (uint32_t)length,
+        .flags = I2C_MSG_WRITE | I2C_MSG_STOP,
+    };
+    return result(bmx_nrf52_i2c_transfer_timeout(i2c_device(), &msg, 1,
+        (uint16_t)address, timeout_us), length);
 }
 
 int32_t bmx_embedded_i2c_read_timeout_us(int32_t controller,
         uint32_t address, void *data, int32_t length, uint32_t timeout_us) {
-    if (timeout_us < I2C_DRIVER_TIMEOUT_US) return I2C_INVALID_ARGUMENT;
-    return bmx_embedded_i2c_read_blocking(controller, address, data, length);
+    if (!valid_transfer(controller, address, data, length))
+        return I2C_INVALID_ARGUMENT;
+    struct i2c_msg msg = {
+        .buf = data, .len = (uint32_t)length,
+        .flags = I2C_MSG_READ | I2C_MSG_STOP,
+    };
+    return result(bmx_nrf52_i2c_transfer_timeout(i2c_device(), &msg, 1,
+        (uint16_t)address, timeout_us), length);
 }
 
 int32_t bmx_embedded_i2c_write_read_blocking(int32_t controller,
@@ -124,7 +179,15 @@ int32_t bmx_embedded_i2c_write_read_blocking(int32_t controller,
 int32_t bmx_embedded_i2c_write_read_timeout_us(int32_t controller,
         uint32_t address, void *write_data, int32_t write_length,
         void *read_data, int32_t read_length, uint32_t timeout_us) {
-    if (timeout_us < 2u * I2C_DRIVER_TIMEOUT_US) return I2C_INVALID_ARGUMENT;
-    return bmx_embedded_i2c_write_read_blocking(controller, address,
-        write_data, write_length, read_data, read_length);
+    if (!valid_transfer(controller, address, write_data, write_length) ||
+            !valid_transfer(controller, address, read_data, read_length))
+        return I2C_INVALID_ARGUMENT;
+    struct i2c_msg msgs[2] = {
+        {.buf = write_data, .len = (uint32_t)write_length,
+            .flags = I2C_MSG_WRITE},
+        {.buf = read_data, .len = (uint32_t)read_length,
+            .flags = I2C_MSG_RESTART | I2C_MSG_READ | I2C_MSG_STOP},
+    };
+    return result(bmx_nrf52_i2c_transfer_timeout(i2c_device(), msgs, 2,
+        (uint16_t)address, timeout_us), read_length);
 }

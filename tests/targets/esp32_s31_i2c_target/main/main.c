@@ -53,7 +53,7 @@ void app_main(void) {
         .receive_buf_depth = 64,
         .slave_addr = I2C_ADDRESS,
         .addr_bit_len = I2C_ADDR_BIT_LEN_7,
-        .flags.enable_internal_pullup = true,
+        .flags.enable_internal_pullup = BMX_I2C_TARGET_INTERNAL_PULLUP,
     };
     i2c_slave_dev_handle_t device;
     ESP_ERROR_CHECK(i2c_new_slave_device(&config, &device));

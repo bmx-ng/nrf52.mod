@@ -5,9 +5,9 @@ Import Embedded.Hardware.I2C
 Import NRF52.System.Time
 
 Local ready:Int = I2CControllerCount() = 1 And ..
-    I2CDefaultController() = I2CController0 And ..
-    I2CDefaultSDAPin() = 36 And I2CDefaultSCLPin() = 38
-If ready Then ready = I2CConfigurePins(I2CController0, 36, 38, True)
+    I2CDefaultController() = I2CController0
+If ready Then ready = I2CConfigurePins(I2CController0, ..
+    I2CDefaultSDAPin(), I2CDefaultSCLPin(), True)
 If ready Then ready = I2CInit(I2CController0, I2CSpeedStandard) = I2CSpeedStandard
 
 Local wrote:Int = False

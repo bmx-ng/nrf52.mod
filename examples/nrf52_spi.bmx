@@ -5,11 +5,12 @@ Import Embedded.Hardware.SPI
 Import NRF52.System.Time
 
 Local controller:Int = SPIDefaultController()
+Local rxPin:UInt = SPIDefaultRXPin()
+Local txPin:UInt = SPIDefaultTXPin()
+Local clockPin:UInt = SPIDefaultClockPin()
 Local ready:Int = SPIControllerCount() = 1 And controller = SPIController0
-ready = ready And SPIDefaultRXPin() = 39 And ..
-    SPIDefaultTXPin() = 34 And SPIDefaultClockPin() = 33
 ready = ready And SPIDefaultChipSelectPin() = SPIUnavailablePin
-If ready Then ready = SPIConfigurePins(controller, 39, 34, 33)
+If ready Then ready = SPIConfigurePins(controller, rxPin, txPin, clockPin)
 If ready Then ready = SPIInit(controller, 1000000) > 0
 If ready Then ready = SPIGetBaudrate(controller) > 0 And ..
     SPISetFormat(controller, 8, SPIClockPolarity0, SPIClockPhase0, SPIBitOrderMSBFirst)

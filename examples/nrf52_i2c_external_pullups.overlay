@@ -1,0 +1,7 @@
+/* Use external SDA and SCL pull-ups to the board's 3.3 V rail. */
+&i2c1_default {
+    group1 {
+        /delete-property/ bias-pull-up;
+        bias-disable;
+    };
+};

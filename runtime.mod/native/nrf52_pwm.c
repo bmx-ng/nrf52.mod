@@ -1,13 +1,58 @@
+#include <stddef.h>
 #include <stdint.h>
 
 #include "blitzmax/embedded_pwm.h"
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
+#include <zephyr/dt-bindings/pinctrl/nrf-pinctrl.h>
 #include <zephyr/drivers/pwm.h>
+#include <zephyr/sys/util.h>
 
 #define BMX_NRF52_PWM_LED_PIN 15u
 #define BMX_NRF52_PWM_D4_PIN 22u
 #define BMX_NRF52_PWM_CHANNEL 0u
+#define BMX_PWM_PIN(psel) (((psel) >> NRF_PIN_POS) & NRF_PIN_MSK)
+#define BMX_PWM_FUN(psel) (((psel) >> NRF_FUN_POS) & NRF_FUN_MSK)
+#define BMX_PWM_PSEL(label) DT_PROP_BY_IDX(DT_CHILD(DT_NODELABEL(label), group1), psels, 0)
+#define BMX_PWM_BUS_PIN(label, index) BMX_PWM_PIN(DT_PROP_BY_IDX( \
+    DT_CHILD(DT_NODELABEL(label), group1), psels, index))
+#define BMX_PWM_PIN_RESERVED(pin) ((pin) >= 48u || (pin) == 18u || \
+    (pin) == 24u || (pin) == 25u)
+#define BMX_PWM_PIN_IN_USE(pin) ((pin) == BMX_NRF52_PWM_LED_PIN || \
+    (pin) == BMX_NRF52_PWM_D4_PIN || \
+    (pin) == BMX_PWM_BUS_PIN(uart0_default, 0) || \
+    (pin) == BMX_PWM_BUS_PIN(uart0_default, 1) || \
+    (pin) == BMX_PWM_BUS_PIN(uart0_default, 2) || \
+    (pin) == BMX_PWM_BUS_PIN(uart0_default, 3) || \
+    (pin) == BMX_PWM_BUS_PIN(spi2_default, 0) || \
+    (pin) == BMX_PWM_BUS_PIN(spi2_default, 1) || \
+    (pin) == BMX_PWM_BUS_PIN(spi2_default, 2) || \
+    (pin) == BMX_PWM_BUS_PIN(i2c1_default, 0) || \
+    (pin) == BMX_PWM_BUS_PIN(i2c1_default, 1))
+
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(pwm2), okay)
+#define BMX_PWM2_PIN BMX_PWM_PIN(BMX_PWM_PSEL(bmx_pwm2_default))
+BUILD_ASSERT(DT_PROP_LEN(DT_CHILD(DT_NODELABEL(bmx_pwm2_default), group1), psels) == 1 &&
+    DT_PROP_LEN(DT_CHILD(DT_NODELABEL(bmx_pwm2_sleep), group1), psels) == 1 &&
+    BMX_PWM_FUN(BMX_PWM_PSEL(bmx_pwm2_default)) == NRF_FUN_PWM_OUT0 &&
+    BMX_PWM2_PIN == BMX_PWM_PIN(BMX_PWM_PSEL(bmx_pwm2_sleep)) &&
+    !BMX_PWM_PIN_RESERVED(BMX_PWM2_PIN) && !BMX_PWM_PIN_IN_USE(BMX_PWM2_PIN),
+    "PWM2 needs one valid, unclaimed output pin");
+#endif
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(pwm3), okay)
+#define BMX_PWM3_PIN BMX_PWM_PIN(BMX_PWM_PSEL(bmx_pwm3_default))
+BUILD_ASSERT(DT_PROP_LEN(DT_CHILD(DT_NODELABEL(bmx_pwm3_default), group1), psels) == 1 &&
+    DT_PROP_LEN(DT_CHILD(DT_NODELABEL(bmx_pwm3_sleep), group1), psels) == 1 &&
+    BMX_PWM_FUN(BMX_PWM_PSEL(bmx_pwm3_default)) == NRF_FUN_PWM_OUT0 &&
+    BMX_PWM3_PIN == BMX_PWM_PIN(BMX_PWM_PSEL(bmx_pwm3_sleep)) &&
+    !BMX_PWM_PIN_RESERVED(BMX_PWM3_PIN) && !BMX_PWM_PIN_IN_USE(BMX_PWM3_PIN),
+    "PWM3 needs one valid, unclaimed output pin");
+#endif
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(pwm2), okay) && \
+    DT_NODE_HAS_STATUS(DT_NODELABEL(pwm3), okay)
+BUILD_ASSERT(BMX_PWM2_PIN != BMX_PWM3_PIN,
+    "PWM2 and PWM3 need distinct output pins");
+#endif
 
 typedef struct {
     uint8_t configured;
@@ -17,17 +62,32 @@ typedef struct {
     uint32_t duty;
 } BMXNrf52PWMState;
 
-static BMXNrf52PWMState pwm_states[2];
+static BMXNrf52PWMState pwm_states[4];
 
 static int pwm_index(uint32_t pin) {
     if (pin == BMX_NRF52_PWM_LED_PIN) return 0;
     if (pin == BMX_NRF52_PWM_D4_PIN) return 1;
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(pwm2), okay)
+    if (pin == BMX_PWM2_PIN) return 2;
+#endif
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(pwm3), okay)
+    if (pin == BMX_PWM3_PIN) return 3;
+#endif
     return -1;
 }
 
 static const struct device *pwm_device(int index) {
-    return index == 0 ? DEVICE_DT_GET(DT_NODELABEL(pwm0))
-        : DEVICE_DT_GET(DT_NODELABEL(pwm1));
+    switch (index) {
+    case 0: return DEVICE_DT_GET(DT_NODELABEL(pwm0));
+    case 1: return DEVICE_DT_GET(DT_NODELABEL(pwm1));
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(pwm2), okay)
+    case 2: return DEVICE_DT_GET(DT_NODELABEL(pwm2));
+#endif
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(pwm3), okay)
+    case 3: return DEVICE_DT_GET(DT_NODELABEL(pwm3));
+#endif
+    default: return NULL;
+    }
 }
 
 int32_t bmx_embedded_pwm_is_valid_pin(uint32_t pin) {
