@@ -142,7 +142,8 @@ addoption nrf52.sdk "/home/you/zephyr-sdk-1.0.1"
 In PowerShell, install the host tools with `winget`, then **close and reopen PowerShell** so the new commands are on `PATH`:
 
 ```powershell
-winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf Python.Python.3.12 Git.Git oss-winget.dtc wget 7zip.7zip
+$packages = 'Kitware.CMake', 'Ninja-build.Ninja', 'oss-winget.gperf', 'Python.Python.3.12', 'Git.Git', 'oss-winget.dtc', '7zip.7zip'
+foreach ($package in $packages) { winget install --id $package --exact }
 ```
 
 Create a Python virtual environment, fetch the pinned Zephyr workspace and its modules, then install the ARM SDK. Adding the virtual environment to this PowerShell session's `PATH` avoids changing PowerShell's script execution policy:
@@ -154,18 +155,21 @@ python -m pip install west
 west init -m https://github.com/zephyrproject-rtos/zephyr --mr v4.5.0 "$HOME\zephyrproject"
 Set-Location "$HOME\zephyrproject"
 west update
-python -m pip install @((west packages pip) -split ' ')
+python -m pip install -r "$HOME\zephyrproject\zephyr\scripts\requirements-base.txt"
 west zephyr-export
 Set-Location zephyr
 west sdk install -d "$HOME\zephyr-sdk-1.0.1" -t arm-zephyr-eabi
 ```
 
-If `7z` is not found, add its installed directory to `PATH` as described in [Zephyr's Windows setup](https://docs.zephyrproject.org/latest/develop/getting_started/). In the installed BlitzMax SDK's `bin/custom.bmk`, use forward slashes in the paths and replace `you` with your Windows username:
+If `7z` is not found, add `C:\Program Files\7-Zip` (or its actual installed directory) to `PATH` as described in [Zephyr's Windows setup](https://docs.zephyrproject.org/latest/develop/getting_started/). In the installed BlitzMax SDK's `bin/custom.bmk`, use forward slashes in the paths and replace `you` with your Windows username:
 
 ```text
 addoption nrf52.zephyr "C:/Users/you/zephyrproject/zephyr"
 addoption nrf52.sdk "C:/Users/you/zephyr-sdk-1.0.1"
 ```
+
+Windows on ARM64 needs [additional setup](docs/windows-arm64.md) to run the x64 Python packages and Zephyr SDK under emulation.
+Keep Windows project paths short: Zephyr's generated object paths can exceed the Windows path limit in deeply nested folders.
 
 ### IDE-assisted installation
 

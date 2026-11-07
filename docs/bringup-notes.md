@@ -8,6 +8,12 @@ On an Ubuntu 26.04 ARM64 Parallels VM, the documented Zephyr 4.5.0 workspace and
 
 The first application build found a missing `BRL.StandardIO` nRF52 binding in the Linux SDK copy. After the binding was committed to `brl.mod` and staged, `examples/nrf52_hello.bmx` built a valid 190,464-byte UF2 (95,212 B flash, 98,936 B RAM). The BLE GATT example built a valid 594,944-byte UF2 (297,424 B flash, 157,088 B RAM). The hello configuration had Bluetooth disabled; the GATT configuration had `CONFIG_BT=y`. Neither Linux image was uploaded from the VM, so this verifies host compilation and image generation, not Linux USB passthrough or flashing.
 
+## Windows ARM64 host build
+
+On a Windows 11 ARM64 Parallels VM, the task-branch `bcc2` and `bmk2` rebuilt successfully from an isolated Windows BlitzMax SDK with matching module sources. The compiler IR regression test passed and `bmk boardinfo` recognized `promicro_nrf52840`. Zephyr 4.5.0, x64 Python 3.12, and the Windows x64 Zephyr SDK 1.0.1 ran under emulation. The [ARM64 setup note](windows-arm64.md) records the extra steps: the SDK installer rejects the ARM64 host, and the native ARM64 Python environment cannot install the required `windows-curses` package.
+
+`nrf52_hello.bmx` produced a 190,464-byte UF2 with Bluetooth disabled. `nrf52_ble_gatt.bmx` produced a 594,944-byte UF2 with `CONFIG_BT=y` (297,456 B flash, 157,088 B RAM). The first BLE build failed because the test SDK's deeply nested source directory made a generated dependency path too long for Windows. Building the same source from `C:\b` succeeded. Neither Windows image was uploaded from the VM; USB passthrough and flashing remain untested there.
+
 The initial adapter has a 64 KiB static managed arena, a 16 KiB Zephyr main stack, USB CDC standard input and output, and one managed thread. GPIO, GPIO interrupts, hardware random, ADC, PWM, SPI, I²C, polling and buffered UART, watchdog, kernel-managed idle and timed sleep, and a BLE observer/central/peripheral subset are implemented. The Zephyr build reports final flash and RAM use; the hello example is a repeating USB serial greeting.
 
 `BRL.StandardIO.Input` receives bytes from Zephyr's USB CDC console. `examples/nrf52_usb_input.bmx` prompts for `PING`; the board reported `NRF52_USB_INPUT,read=pass` after the Mac sent that word over its USB serial port.
