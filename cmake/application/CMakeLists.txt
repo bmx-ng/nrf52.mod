@@ -35,6 +35,12 @@ endif()
 if("__bb_embedded_network_threadcoap_threadcoap" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
   list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.coap.conf")
 endif()
+if("__bb_embedded_network_threadcoapblock_threadcoapblock" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.coap-block.conf")
+endif()
+if("__bb_embedded_network_threadcoapobserve_threadcoapobserve" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.coap-observe.conf")
+endif()
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(blitzmax_nrf52_application C CXX)
@@ -113,6 +119,14 @@ endif()
 if("__bb_embedded_network_threadcoap_threadcoap" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
   target_sources(app PRIVATE
     "${EMBEDDED_ROOT}/network.mod/thread.mod/native/thread_coap.c")
+endif()
+if("__bb_embedded_network_threadcoapblock_threadcoapblock" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  target_sources(app PRIVATE
+    "${EMBEDDED_ROOT}/network.mod/thread.mod/native/thread_coap_block.c")
+endif()
+if("__bb_embedded_network_threadcoapobserve_threadcoapobserve" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  target_sources(app PRIVATE
+    "${EMBEDDED_ROOT}/network.mod/thread.mod/native/thread_coap_observe.c")
 endif()
 target_compile_definitions(app PRIVATE RYU_OPTIMIZE_SIZE=1 BMX_EMBEDDED_ARENA_SIZE=65536u)
 target_include_directories(app PRIVATE
