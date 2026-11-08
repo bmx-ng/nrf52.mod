@@ -95,6 +95,7 @@ target_sources(app PRIVATE
 if("__bb_embedded_network_thread_thread" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
   target_sources(app PRIVATE
     "${EMBEDDED_ROOT}/network.mod/thread.mod/native/thread_openthread.c"
+    "${EMBEDDED_ROOT}/network.mod/thread.mod/native/thread_discovery.c"
     "${NRF52_ROOT}/network.mod/thread.mod/native/nrf52_thread.c")
 endif()
 target_compile_definitions(app PRIVATE RYU_OPTIMIZE_SIZE=1 BMX_EMBEDDED_ARENA_SIZE=65536u)
