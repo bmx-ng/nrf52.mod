@@ -26,6 +26,12 @@ if("__bb_embedded_network_thread_thread" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
     set(EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.conf")
   endif()
 endif()
+if("__bb_embedded_network_threadcommissioning_threadcommissioning" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.commissioning.conf")
+endif()
+if("__bb_embedded_network_threaddiscovery_threaddiscovery" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.discovery.conf")
+endif()
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(blitzmax_nrf52_application C CXX)
@@ -95,8 +101,11 @@ target_sources(app PRIVATE
 if("__bb_embedded_network_thread_thread" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
   target_sources(app PRIVATE
     "${EMBEDDED_ROOT}/network.mod/thread.mod/native/thread_openthread.c"
-    "${EMBEDDED_ROOT}/network.mod/thread.mod/native/thread_discovery.c"
     "${NRF52_ROOT}/network.mod/thread.mod/native/nrf52_thread.c")
+endif()
+if("__bb_embedded_network_threaddiscovery_threaddiscovery" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  target_sources(app PRIVATE
+    "${EMBEDDED_ROOT}/network.mod/thread.mod/native/thread_discovery.c")
 endif()
 target_compile_definitions(app PRIVATE RYU_OPTIMIZE_SIZE=1 BMX_EMBEDDED_ARENA_SIZE=65536u)
 target_include_directories(app PRIVATE

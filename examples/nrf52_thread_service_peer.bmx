@@ -5,6 +5,7 @@ Framework BRL.StandardIO
 Import NRF52.Network.Thread
 Import NRF52.System.Time
 Import Embedded.Network.Thread
+Import Embedded.Network.ThreadDiscovery
 
 Print "THREAD_BOOT=starting"
 If ThreadStartSaved() <> 0 Then RuntimeError "No saved Thread network"
