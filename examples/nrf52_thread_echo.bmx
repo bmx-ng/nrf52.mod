@@ -20,15 +20,30 @@ End If
 Print "THREAD_DATASET=" + ThreadActiveDataset()
 Local role:Int = ThreadWaitForAttached()
 If role < ThreadRoleChild Then RuntimeError "Thread attach failed: " + role
-For Local index:Int = 0 To 7
-	Local address:String = ThreadIPv6Address(index)
-	If address = "" Then Exit
-	Print "THREAD_IPV6=" + address
-Next
 If ThreadUDPOpen(12345) <> 0 Then RuntimeError "Thread UDP bind failed"
 
 Local packet:Byte[512]
+Local lastAddressCheck:UInt
+Local lastAddresses:String
 While True
+	If MilliSecs() - lastAddressCheck >= 5000 Then
+		Local addresses:String
+		For Local index:Int = 0 To 7
+			Local address:String = ThreadIPv6Address(index)
+			If address = "" Then Exit
+			addresses :+ address + "~n"
+		Next
+		If addresses <> lastAddresses Then
+			Print "THREAD_IPV6_CHANGED"
+			For Local index:Int = 0 To 7
+				Local address:String = ThreadIPv6Address(index)
+				If address = "" Then Exit
+				Print "THREAD_IPV6=" + address
+			Next
+			lastAddresses = addresses
+		End If
+		lastAddressCheck = MilliSecs()
+	End If
 	Local source:String, port:Int
 	Local length:Int = ThreadUDPReceive(packet, source, port)
 	If length >= 0
