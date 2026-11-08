@@ -45,6 +45,39 @@ Wend
 If code <> ThreadCoAPChanged Or reply[0] <> Asc("P") Or reply[1] <> Asc("I") Or ..
 	reply[2] <> Asc("N") Or reply[3] <> Asc("G") Then RuntimeError "POST reply failed"
 Print "THREAD_COAP_POST=pass"
+
+' Issue two requests together and match their responses by exchange ID.
+Local healthId:Int = ThreadCoAPSendRequest(address, "health", ThreadCoAPGet, Null, port)
+Local echoId:Int = ThreadCoAPSendRequest(address, "echo", ThreadCoAPPost, payload, port)
+If healthId <= 0 Or echoId <= 0 Then RuntimeError "Concurrent CoAP sends failed"
+Local healthDone:Int, echoDone:Int
+started = MilliSecs()
+While (Not healthDone Or Not echoDone) And MilliSecs() - started < 15000
+	If Not healthDone Then
+		Local length:Int = ThreadCoAPReadResponse(healthId, reply, code)
+		If length >= 0 Then
+			If length <> 2 Or code <> ThreadCoAPContent Or reply[0] <> Asc("U") Or reply[1] <> Asc("P") Then RuntimeError "Health response failed"
+			healthDone = True
+		Else If length <> -11 Then
+			RuntimeError "Health exchange failed: " + length
+		End If
+	End If
+	If Not echoDone Then
+		Local length:Int = ThreadCoAPReadResponse(echoId, reply, code)
+		If length >= 0 Then
+			If length <> payload.length Or code <> ThreadCoAPChanged Then RuntimeError "Echo response failed"
+			For Local i:Int = 0 Until length
+				If reply[i] <> payload[i] Then RuntimeError "Echo payload failed"
+			Next
+			echoDone = True
+		Else If length <> -11 Then
+			RuntimeError "Echo exchange failed: " + length
+		End If
+	End If
+	SleepMilliseconds(50)
+Wend
+If Not healthDone Or Not echoDone Then RuntimeError "Concurrent CoAP response timeout"
+Print "THREAD_COAP_CONCURRENT=pass"
 While True
 	SleepMilliseconds(1000)
 Wend
