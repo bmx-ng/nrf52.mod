@@ -185,6 +185,17 @@ For example, a GPIO application imports `Embedded.Hardware.GPIO`; a BLE applicat
 
 **BLE is opt-in.** Importing `NRF52.Network.BLE` adds the BLE source and automatically selects [`ble.conf`](cmake/application/ble.conf), enabling Zephyr Bluetooth, GATT, and pairing. An application without that import leaves Zephyr Bluetooth disabled.
 
+**Thread is opt-in.** Importing `NRF52.Network.Thread` selects
+[`thread.conf`](cmake/application/thread.conf) and Zephyr's OpenThread stack
+for the nRF52840 IEEE 802.15.4 radio. The portable API and a two-board UDP
+example are described in `embedded.mod/network.mod/thread.mod/README.md`; the local example
+is [`nrf52_thread_echo.bmx`](examples/nrf52_thread_echo.bmx). Zephyr 4.5.0 must
+include the OpenThread module fetched by `west update`. An external Thread
+border router is required for off-mesh IPv6 access. The example's dataset
+printout includes the network key and is intended only for local testing.
+The Thread profile enables SLAAC so the nRF can acquire an off-mesh-routable
+address when a border router advertises an on-mesh prefix.
+
 ## Feature guide
 
 | Area | Primary modules | Start with |

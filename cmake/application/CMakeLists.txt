@@ -19,9 +19,42 @@ if("__bb_nrf52_network_ble_ble" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
     set(EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/ble.conf")
   endif()
 endif()
+if("__bb_embedded_network_thread_thread" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  if(DEFINED EXTRA_CONF_FILE)
+    list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.conf")
+  else()
+    set(EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.conf")
+  endif()
+endif()
+if("__bb_embedded_network_threadcommissioning_threadcommissioning" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.commissioning.conf")
+endif()
+if("__bb_embedded_network_threaddiscovery_threaddiscovery" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.discovery.conf")
+endif()
+if("__bb_embedded_network_threadcoap_threadcoap" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.coap.conf")
+endif()
+if("__bb_embedded_network_threadcoapblock_threadcoapblock" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.coap-block.conf")
+endif()
+if("__bb_embedded_network_threadcoapobserve_threadcoapobserve" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.coap-observe.conf")
+endif()
+if("__bb_embedded_network_threadcoapsecure_threadcoapsecure" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.coap-secure.conf")
+endif()
+if("__bb_embedded_network_threadtcp_threadtcp" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.tcp.conf")
+endif()
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(blitzmax_nrf52_application C CXX)
+
+if("__bb_embedded_network_threadcoapsecure_threadcoapsecure" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  target_compile_options(openthread-ftd PRIVATE
+    -include "${BLITZMAX_SDK}/mod/embedded.mod/network.mod/thread.mod/native/thread_mbedtls4_compat.h")
+endif()
 
 get_target_property(BMX_I2C_DRIVER_SOURCES drivers__i2c SOURCES)
 set(BMX_I2C_DRIVER_FOUND FALSE)
@@ -85,6 +118,35 @@ target_sources(app PRIVATE
   "${BRL_BLITZ_ROOT}/ryu/ryu/f2s.c"
   "${BRL_BLITZ_ROOT}/ryu/ryu/d2s.c"
 )
+if("__bb_embedded_network_thread_thread" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  target_sources(app PRIVATE
+    "${EMBEDDED_ROOT}/network.mod/thread.mod/native/thread_openthread.c"
+    "${NRF52_ROOT}/network.mod/thread.mod/native/nrf52_thread.c")
+endif()
+if("__bb_embedded_network_threaddiscovery_threaddiscovery" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  target_sources(app PRIVATE
+    "${EMBEDDED_ROOT}/network.mod/thread.mod/native/thread_discovery.c")
+endif()
+if("__bb_embedded_network_threadcoap_threadcoap" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  target_sources(app PRIVATE
+    "${EMBEDDED_ROOT}/network.mod/thread.mod/native/thread_coap.c")
+endif()
+if("__bb_embedded_network_threadcoapblock_threadcoapblock" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  target_sources(app PRIVATE
+    "${EMBEDDED_ROOT}/network.mod/thread.mod/native/thread_coap_block.c")
+endif()
+if("__bb_embedded_network_threadcoapobserve_threadcoapobserve" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  target_sources(app PRIVATE
+    "${EMBEDDED_ROOT}/network.mod/thread.mod/native/thread_coap_observe.c")
+endif()
+if("__bb_embedded_network_threadcoapsecure_threadcoapsecure" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  target_sources(app PRIVATE
+    "${EMBEDDED_ROOT}/network.mod/thread.mod/native/thread_coap_secure.c")
+endif()
+if("__bb_embedded_network_threadtcp_threadtcp" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  target_sources(app PRIVATE
+    "${EMBEDDED_ROOT}/network.mod/thread.mod/native/thread_tcp.c")
+endif()
 target_compile_definitions(app PRIVATE RYU_OPTIMIZE_SIZE=1 BMX_EMBEDDED_ARENA_SIZE=65536u)
 target_include_directories(app PRIVATE
   "${EMBEDDED_ROOT}/runtime.mod/native/include"
