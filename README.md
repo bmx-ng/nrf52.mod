@@ -193,6 +193,8 @@ is [`nrf52_thread_echo.bmx`](examples/nrf52_thread_echo.bmx). Zephyr 4.5.0 must
 include the OpenThread module fetched by `west update`. An external Thread
 border router is required for off-mesh IPv6 access. The example's dataset
 printout includes the network key and is intended only for local testing.
+The Thread profile enables SLAAC so the nRF can acquire an off-mesh-routable
+address when a border router advertises an on-mesh prefix.
 
 ## Feature guide
 
