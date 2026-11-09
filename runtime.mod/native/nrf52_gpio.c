@@ -58,6 +58,22 @@ int32_t bmx_embedded_gpio_is_pull_capable(uint32_t pin) {
     return bmx_embedded_gpio_is_valid(pin);
 }
 
+int32_t bmx_embedded_gpio_is_pull_up_capable(uint32_t pin) {
+    return bmx_embedded_gpio_is_valid(pin);
+}
+
+int32_t bmx_embedded_gpio_is_pull_down_capable(uint32_t pin) {
+    return bmx_embedded_gpio_is_valid(pin);
+}
+
+int32_t bmx_embedded_gpio_is_drive_strength_configurable(uint32_t pin) {
+    return bmx_embedded_gpio_is_output_capable(pin);
+}
+
+int32_t bmx_embedded_gpio_is_irq_capable(uint32_t pin) {
+    return bmx_embedded_gpio_is_valid(pin);
+}
+
 static int32_t configure_pin(uint32_t pin) {
     gpio_flags_t flags = pins[pin].output
         ? (GPIO_INPUT | (pins[pin].value ? GPIO_OUTPUT_HIGH : GPIO_OUTPUT_LOW))
