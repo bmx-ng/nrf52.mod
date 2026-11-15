@@ -22,6 +22,20 @@ int32_t bmx_nrf52_stdio_init_all(void) {
     return 1;
 }
 
+static int bmx_nrf52_stdio_output_connected(const struct device *console) {
+#if defined(CONFIG_UART_LINE_CTRL)
+    uint32_t dtr = 0;
+
+    /* USB CDC consoles expose the host terminal state through DTR.  Do not
+       let diagnostic output stall the application when no terminal is open.
+       A physical UART (or another driver without line control) retains the
+       normal always-connected behaviour. */
+    if (uart_line_ctrl_get(console, UART_LINE_CTRL_DTR, &dtr) == 0)
+        return dtr != 0;
+#endif
+    return 1;
+}
+
 int64_t bmx_nrf52_stdio_read(void *buffer, int64_t count) {
     if (!buffer || count <= 0) return 0;
     const struct device *console = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
@@ -38,12 +52,18 @@ int64_t bmx_nrf52_stdio_read(void *buffer, int64_t count) {
 
 int64_t bmx_nrf52_stdio_write(void *buffer, int64_t count) {
     if (!buffer || count <= 0) return 0;
+    const struct device *console = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
+    if (!device_is_ready(console)) return 0;
+    if (!bmx_nrf52_stdio_output_connected(console)) return count;
     size_t written = fwrite(buffer, 1, (size_t)count, stdout);
     fflush(stdout);
     return (int64_t)written;
 }
 
 void bmx_nrf52_stdio_flush(void) {
+    const struct device *console = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
+    if (!device_is_ready(console)) return;
+    if (!bmx_nrf52_stdio_output_connected(console)) return;
     fflush(stdout);
 }
 
