@@ -257,14 +257,17 @@ The module formats the chip automatically only if every byte is erased. If exist
 
 The Sense and Sense Plus profiles expose their onboard LSM6DS3TR-C through
 `Embedded.Sensors.Motion` and `Embedded.Sensors.Temperature`. Import either
-module to enable the IMU driver; the plain XIAO and Tenstar profiles report
-zero motion sensors. `MotionRead` returns acceleration in metres per second
-squared, angular velocity in radians per second, and a monotonic microsecond
-timestamp. The three axes are the chip's physical axes. To detect inversion,
-record the upright acceleration vector and pass it with a later reading to
+module to enable the IMU driver. `MotionSensorAt(0)` and
+`TemperatureSensorAt(0)` return sensor objects on those boards; they return
+`Null` on the plain XIAO and Tenstar profiles. Use the same `Read` and
+`ReadCelsius` methods on objects supplied by external sensor drivers. A
+motion reading contains acceleration in metres per second squared, angular
+velocity in radians per second, and a monotonic microsecond timestamp. The
+three axes are the chip's physical axes. To detect inversion, record the
+upright acceleration vector and pass it with a later reading to
 `MotionIsUpsideDown`.
 
-`TemperatureReadCelsius` reports the IMU's internal temperature as a device
+`ReadCelsius` reports the IMU's internal temperature as a device
 reading. It is useful for tracking changes but needs calibration for accurate
 ambient measurements. The IMU runs at 52 samples per second when enabled.
 Its dedicated P0.07/P0.27 lines use a software I²C bus so UART0 and the
