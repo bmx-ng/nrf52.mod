@@ -2,13 +2,17 @@
 
 Zephyr platform support for BlitzMax NG applications on nRF52840 boards. The target provides implementations of the portable `Embedded.*` APIs and a few `NRF52.*` modules for behavior specific to this chip.
 
-## Supported board
+## Board profiles
 
 | Board | `-board` value | Bootloader |
 | --- | --- | --- |
 | Tenstar Robot ProMicro nRF52840 | `promicro_nrf52840` | nice!nano UF2, S140 v6.1.1 |
+| Seeed XIAO nRF52840 | `xiao_nrf52840` | XIAO UF2, S140 v7 |
+| Seeed XIAO nRF52840 Sense | `xiao_nrf52840_sense` | XIAO UF2, S140 v7 |
+| Seeed XIAO nRF52840 Plus | `xiao_nrf52840_plus` | XIAO UF2, S140 v7 |
+| Seeed XIAO nRF52840 Sense Plus | `xiao_nrf52840_sense_plus` | XIAO UF2, S140 v7 |
 
-The Zephyr board qualifier is `promicro_nrf52840/nrf52840/uf2`. The target has been tested on the board above; other nRF52 variants are not yet supported by this adapter. The application is linked inside Zephyr's app partition.
+The Tenstar uses Zephyr's `promicro_nrf52840/nrf52840/uf2` target. XIAO and XIAO Plus use `xiao_ble/nrf52840`; the Sense variants use `xiao_ble/nrf52840/sense`. Plus models use the same Zephyr target as their smaller counterpart, with their extra pads available through SoC GPIO numbering. XIAO profiles require a compatible S140 v7 UF2 bootloader. Verify `INFO_UF2.TXT` before uploading to a new board. The application is linked inside Zephyr's app partition.
 
 ## Requirements
 
@@ -57,7 +61,11 @@ bmk deviceinfo -l nrf52
 | `-r` | Build optimised release firmware |
 | `-d` | Include source-level debugging information |
 | `-o <name>` | Choose the output name |
-| `-x` | Upload the UF2 when the board is already in `NICENANO` mode |
+| `-x` | Upload the UF2 when the selected board is already in UF2 mode |
+
+For a XIAO, select its profile, for example `bmk makeapp -r -board xiao_nrf52840 -o hello hello.bmx`. Double-press the small reset button to enter UF2 mode. Check the mounted drive's `INFO_UF2.TXT` for its `Board-ID` and bootloader layout before the first upload. The factory USB application may report “Sense” even on a plain board; identify the physical variant by its components.
+
+The tested plain XIAO and Sense have 0.6.1 bootloaders that both report `Seeed_XIAO_nRF52840_Sense`; the plain board has no microphone or IMU. The tested Plus and Sense Plus have bootloader 0.9.2 and report `nRF52840-SeeedXiao-v1` and `nRF52840-SeeedXiaoSense-v1` respectively. If your board's `Board-ID` differs from its profile, set `nrf52.uf2.boardid` (or `NRF52_UF2_BOARD_ID`) to the exact value from `INFO_UF2.TXT` before using `-x`.
 
 The managed arena is currently fixed at 64 KiB and the Zephyr main stack at 16 KiB. These are build settings, not `-heap` options for this target. A managed allocation may fail before physical RAM is full.
 
@@ -79,6 +87,7 @@ addoption nrf52.sdk "/path/to/zephyr-sdk-1.0.1"
 | `nrf52.venv` | `NRF52_VENV` | Workspace Python environment, when not beside the Zephyr source |
 | `nrf52.west` | `WEST` | `west` executable or its containing directory |
 | `nrf52.overlay` | `BMX_NRF52_EXTRA_OVERLAY_FILE` | Additional devicetree overlay applied after the built-in board overlay |
+| `nrf52.uf2.boardid` | `NRF52_UF2_BOARD_ID` | Override the selected profile's UF2 Board-ID if `INFO_UF2.TXT` differs |
 
 `custom.bmk` takes precedence over environment variables. `bmk` automatically finds `west` and Python packages in the workspace's sibling `.venv`, so you do not need to activate it for each build. Host tools still need to be on `PATH`.
 
@@ -208,6 +217,7 @@ address when a border router advertises an on-mesh prefix.
 | UART | `Embedded.Hardware.UART`, `Embedded.IO.BufferedUART` | [`nrf52_uart.bmx`](examples/nrf52_uart.bmx), [`nrf52_buffered_uart.bmx`](examples/nrf52_buffered_uart.bmx) |
 | Watchdog and power | `NRF52.Hardware.Watchdog`, `Embedded.System.Power`, `NRF52.System.Power` | [`nrf52_watchdog.bmx`](examples/nrf52_watchdog.bmx), [`nrf52_system_off.bmx`](examples/nrf52_system_off.bmx) |
 | BLE peripheral and central | `NRF52.Network.BLE`, `Embedded.Network.BLE` | [`nrf52_ble_gatt.bmx`](examples/nrf52_ble_gatt.bmx), [`nrf52_ble_gatt_client.bmx`](examples/nrf52_ble_gatt_client.bmx) |
+| XIAO external flash | `NRF52.Storage.LittleFS`, `BRL.FileSystem` | [`nrf52_xiao_storage.bmx`](examples/nrf52_xiao_storage.bmx) |
 
 ## Board settings and limits
 
@@ -221,6 +231,26 @@ address when a border router advertises an on-mesh prefix.
 | Watchdog | Once started, it cannot be disabled in software; a power cycle stops it. |
 | System OFF | `SystemOff()` and `SystemOffUntilGPIO()` stop the program. Wake restarts through the bootloader; save state before entering. There is no timer wake in System OFF. |
 | BLE | One connection, four local GATT services, eight local characteristics, and four stored bonds in the current configuration. |
+
+The peripheral routes in that table describe the Tenstar profile. The XIAO profiles use the [Seeed pinout](https://wiki.seeedstudio.com/XIAO_BLE/):
+
+| Function | XIAO pad | SoC pin |
+| --- | --- | --- |
+| I²C SDA / SCL | D4 / D5 | P0.04 / P0.05 |
+| UART TX / RX | D6 / D7 | P1.11 / P1.12 |
+| UART RTS / CTS, when enabled | D0 / D1 | P0.02 / P0.03 |
+| SPI SCK / MISO / MOSI | D8 / D9 / D10 | P1.13 / P1.14 / P1.15 |
+| PWM0 / PWM1 | RGB red / blue | P0.26 / P0.06 |
+
+The XIAO's D0 and D1 are also ADC inputs; using UART hardware flow control claims those pads. The Sense variants' IMU and microphone are not yet wrapped by this module. The IMU's internal I²C0 bus is disabled in this application configuration because UART0 shares that hardware instance; the external D4/D5 I²C1 bus remains available.
+
+Plus boards add D11–D19 at P0.15, P0.19, P1.01, P0.09, P0.10, P0.31, P1.03, P1.05, and P1.07 respectively. D14/P0.09 and D15/P0.10 share the NFC function and need their UICR configuration checked before using them as GPIO. D16/P0.31 is the battery-sense input; avoid reading it until the board's battery-enable circuit is configured appropriately.
+
+### XIAO external storage
+
+All four XIAO profiles expose the separate 2 MiB QSPI flash through `NRF52.Storage.LittleFS`. Importing the module mounts it and selects it as the default `BRL.FileSystem` backend. Ordinary paths and `file::` or `littlefs::` paths refer to the same volume. Use `LoadText`, `SaveText`, `ReadFile`, `WriteFile`, and the other standard file functions. This is independent of the nRF52840's internal application flash and UF2 bootloader. LittleFS is included only when the module is imported; the Zephyr workspace must contain the pinned `littlefs` module (`west update littlefs`).
+
+The module formats the chip automatically only if every byte is erased. If existing data cannot be mounted, `LittleFSIsMounted()` is false and `LittleFSLastError()` reports the error; the data is left intact. `FormatLittleFS()` explicitly erases the whole external chip and mounts a new filesystem. Filesystem timestamps are not currently stored, so `FileStat` reports zero times and `SetFileTime` is unsupported. The Tenstar profile has no external QSPI chip and does not support this module.
 
 Advanced Zephyr Kconfig changes can be supplied through `BMX_NRF52_EXTRA_CONF_FILE`, set to the absolute path of an additional `.conf` file before building. The BLE fragment is still added automatically when the BLE module is imported.
 

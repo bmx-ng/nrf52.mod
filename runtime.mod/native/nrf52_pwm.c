@@ -8,18 +8,18 @@
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/sys/util.h>
 
-#define BMX_NRF52_PWM_LED_PIN 15u
-#define BMX_NRF52_PWM_D4_PIN 22u
 #define BMX_NRF52_PWM_CHANNEL 0u
 #define BMX_PWM_PIN(psel) (((psel) >> NRF_PIN_POS) & NRF_PIN_MSK)
 #define BMX_PWM_FUN(psel) (((psel) >> NRF_FUN_POS) & NRF_FUN_MSK)
 #define BMX_PWM_PSEL(label) DT_PROP_BY_IDX(DT_CHILD(DT_NODELABEL(label), group1), psels, 0)
+#define BMX_NRF52_PWM_LED_PIN BMX_PWM_PIN(BMX_PWM_PSEL(pwm0_default))
+#define BMX_NRF52_PWM1_PIN BMX_PWM_PIN(BMX_PWM_PSEL(bmx_pwm1_default))
 #define BMX_PWM_BUS_PIN(label, index) BMX_PWM_PIN(DT_PROP_BY_IDX( \
     DT_CHILD(DT_NODELABEL(label), group1), psels, index))
 #define BMX_PWM_PIN_RESERVED(pin) ((pin) >= 48u || (pin) == 18u || \
     (pin) == 24u || (pin) == 25u)
 #define BMX_PWM_PIN_IN_USE(pin) ((pin) == BMX_NRF52_PWM_LED_PIN || \
-    (pin) == BMX_NRF52_PWM_D4_PIN || \
+    (pin) == BMX_NRF52_PWM1_PIN || \
     (pin) == BMX_PWM_BUS_PIN(uart0_default, 0) || \
     (pin) == BMX_PWM_BUS_PIN(uart0_default, 1) || \
     (pin) == BMX_PWM_BUS_PIN(uart0_default, 2) || \
@@ -66,7 +66,7 @@ static BMXNrf52PWMState pwm_states[4];
 
 static int pwm_index(uint32_t pin) {
     if (pin == BMX_NRF52_PWM_LED_PIN) return 0;
-    if (pin == BMX_NRF52_PWM_D4_PIN) return 1;
+    if (pin == BMX_NRF52_PWM1_PIN) return 1;
 #if DT_NODE_HAS_STATUS(DT_NODELABEL(pwm2), okay)
     if (pin == BMX_PWM2_PIN) return 2;
 #endif
