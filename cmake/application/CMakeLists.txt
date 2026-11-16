@@ -25,6 +25,13 @@ endif()
 if("__bb_nrf52_storage_littlefs_littlefs" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
   list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/littlefs.conf")
 endif()
+if("__bb_embedded_sensors_motion_motion" IN_LIST BLITZMAX_MODULE_INITIALIZERS OR
+   "__bb_embedded_sensors_temperature_temperature" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
+  if(BOARD STREQUAL "xiao_ble/nrf52840/sense")
+    list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/sensors.conf")
+    list(APPEND EXTRA_DTC_OVERLAY_FILE "${CMAKE_CURRENT_LIST_DIR}/xiao_sensors.overlay")
+  endif()
+endif()
 if("__bb_embedded_network_thread_thread" IN_LIST BLITZMAX_MODULE_INITIALIZERS)
   if(DEFINED EXTRA_CONF_FILE)
     list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_LIST_DIR}/thread.conf")
@@ -121,6 +128,7 @@ target_sources(app PRIVATE
   "${NRF52_ROOT}/runtime.mod/native/nrf52_uart_async.c"
   "${NRF52_ROOT}/runtime.mod/native/nrf52_i2c.c"
   "${NRF52_ROOT}/runtime.mod/native/nrf52_power.c"
+  "${NRF52_ROOT}/runtime.mod/native/nrf52_sensors.c"
   "${BRL_BLITZ_ROOT}/ryu/ryu/f2s.c"
   "${BRL_BLITZ_ROOT}/ryu/ryu/d2s.c"
 )
