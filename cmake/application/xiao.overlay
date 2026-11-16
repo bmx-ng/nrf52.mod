@@ -1,0 +1,73 @@
+/* XIAO nRF52840, Sense, and Plus carrier routes. */
+&board_cdc_acm_uart {
+    hw-flow-control;
+    tx-fifo-size = <2048>;
+};
+
+/* UART0 and I2C0 share peripheral instance 0. External I2C uses I2C1. */
+&i2c0 {
+    status = "disabled";
+};
+
+&i2c1_default {
+    group1 {
+        bias-pull-up;
+    };
+};
+
+/* D6/D7 carry UART data; D0/D1 are available for optional RTS/CTS. */
+&uart0_default {
+    /delete-node/ group2;
+    group1 {
+        psels = <NRF_PSEL(UART_TX, 1, 11)>,
+                <NRF_PSEL(UART_RX, 1, 12)>,
+                <NRF_PSEL(UART_RTS, 0, 2)>,
+                <NRF_PSEL(UART_CTS, 0, 3)>;
+        bias-pull-up;
+    };
+};
+
+&uart0_sleep {
+    group1 {
+        psels = <NRF_PSEL(UART_TX, 1, 11)>,
+                <NRF_PSEL(UART_RX, 1, 12)>,
+                <NRF_PSEL(UART_RTS, 0, 2)>,
+                <NRF_PSEL(UART_CTS, 0, 3)>;
+    };
+};
+
+/* Red and blue RGB channels provide separate PWM outputs. */
+&pwm0_default {
+    group1 {
+        psels = <NRF_PSEL(PWM_OUT0, 0, 26)>;
+        /delete-property/ nordic,invert;
+    };
+};
+
+&pwm0_sleep {
+    group1 {
+        psels = <NRF_PSEL(PWM_OUT0, 0, 26)>;
+    };
+};
+
+&pinctrl {
+    bmx_pwm1_default: bmx_pwm1_default {
+        group1 {
+            psels = <NRF_PSEL(PWM_OUT0, 0, 6)>;
+        };
+    };
+
+    bmx_pwm1_sleep: bmx_pwm1_sleep {
+        group1 {
+            psels = <NRF_PSEL(PWM_OUT0, 0, 6)>;
+            low-power-enable;
+        };
+    };
+};
+
+&pwm1 {
+    status = "okay";
+    pinctrl-0 = <&bmx_pwm1_default>;
+    pinctrl-1 = <&bmx_pwm1_sleep>;
+    pinctrl-names = "default", "sleep";
+};
