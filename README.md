@@ -218,6 +218,7 @@ address when a border router advertises an on-mesh prefix.
 | Watchdog and power | `NRF52.Hardware.Watchdog`, `Embedded.System.Power`, `NRF52.System.Power` | [`nrf52_watchdog.bmx`](examples/nrf52_watchdog.bmx), [`nrf52_system_off.bmx`](examples/nrf52_system_off.bmx) |
 | BLE peripheral and central | `NRF52.Network.BLE`, `Embedded.Network.BLE` | [`nrf52_ble_gatt.bmx`](examples/nrf52_ble_gatt.bmx), [`nrf52_ble_gatt_client.bmx`](examples/nrf52_ble_gatt_client.bmx) |
 | XIAO external flash | `NRF52.Storage.LittleFS`, `BRL.FileSystem` | [`nrf52_xiao_storage.bmx`](examples/nrf52_xiao_storage.bmx) |
+| XIAO Sense motion and temperature | `Embedded.Sensors.Motion`, `Embedded.Sensors.Temperature` | [`nrf52_xiao_sensors.bmx`](examples/nrf52_xiao_sensors.bmx) |
 
 ## Board settings and limits
 
@@ -251,6 +252,28 @@ Plus boards add D11–D19 at P0.15, P0.19, P1.01, P0.09, P0.10, P0.31, P1.03, P1
 All four XIAO profiles expose the separate 2 MiB QSPI flash through `NRF52.Storage.LittleFS`. Importing the module mounts it and selects it as the default `BRL.FileSystem` backend. Ordinary paths and `file::` or `littlefs::` paths refer to the same volume. Use `LoadText`, `SaveText`, `ReadFile`, `WriteFile`, and the other standard file functions. This is independent of the nRF52840's internal application flash and UF2 bootloader. LittleFS is included only when the module is imported; the Zephyr workspace must contain the pinned `littlefs` module (`west update littlefs`).
 
 The module formats the chip automatically only if every byte is erased. If existing data cannot be mounted, `LittleFSIsMounted()` is false and `LittleFSLastError()` reports the error; the data is left intact. `FormatLittleFS()` explicitly erases the whole external chip and mounts a new filesystem. Filesystem timestamps are not currently stored, so `FileStat` reports zero times and `SetFileTime` is unsupported. The Tenstar profile has no external QSPI chip and does not support this module.
+
+### XIAO Sense motion and temperature
+
+The Sense and Sense Plus profiles expose their onboard LSM6DS3TR-C through
+`Embedded.Sensors.Motion` and `Embedded.Sensors.Temperature`. Import either
+module to enable the IMU driver. `MotionSensorAt(0)` and
+`TemperatureSensorAt(0)` return sensor objects on those boards; they return
+`Null` on the plain XIAO and Tenstar profiles. Use the same `Read` and
+`ReadCelsius` methods on objects supplied by external sensor drivers. A
+motion reading contains acceleration in metres per second squared, angular
+velocity in radians per second, and a monotonic microsecond timestamp. The
+three axes are the chip's physical axes. To detect inversion, record the
+upright acceleration vector and pass it with a later reading to
+`MotionIsUpsideDown`.
+
+`ReadCelsius` reports the IMU's internal temperature as a device
+reading. It is useful for tracking changes but needs calibration for accurate
+ambient measurements. The IMU runs at 52 samples per second when enabled.
+Its dedicated P0.07/P0.27 lines use a software I²C bus so UART0 and the
+external D4/D5 I²C bus remain available. See
+[`nrf52_xiao_sensors.bmx`](examples/nrf52_xiao_sensors.bmx) for a polling
+example.
 
 Advanced Zephyr Kconfig changes can be supplied through `BMX_NRF52_EXTRA_CONF_FILE`, set to the absolute path of an additional `.conf` file before building. The BLE fragment is still added automatically when the BLE module is imported.
 

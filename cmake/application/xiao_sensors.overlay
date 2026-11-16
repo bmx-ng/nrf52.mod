@@ -1,0 +1,23 @@
+/* The onboard Sense IMU uses P0.07/P0.27. UART0 already owns peripheral 0,
+ * while I2C1 serves the external D4/D5 pads, so give the IMU its own bus. */
+&lsm6ds3tr_c {
+    status = "disabled";
+};
+
+/ {
+    bmx_imu_i2c: bmx-imu-i2c {
+        compatible = "gpio-i2c";
+        status = "okay";
+        clock-frequency = <100000>;
+        sda-gpios = <&gpio0 7 (GPIO_OPEN_DRAIN | GPIO_PULL_UP)>;
+        scl-gpios = <&gpio0 27 (GPIO_OPEN_DRAIN | GPIO_PULL_UP)>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        bmx_imu: lsm6ds3tr-c@6a {
+            compatible = "st,lsm6dsl";
+            reg = <0x6a>;
+            status = "okay";
+        };
+    };
+};
