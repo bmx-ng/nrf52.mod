@@ -71,3 +71,17 @@
     pinctrl-1 = <&bmx_pwm1_sleep>;
     pinctrl-names = "default", "sleep";
 };
+
+/* The whole external 2 MiB chip is independent of the UF2/internal flash. */
+&p25q16h {
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        bmx_qspi_partition: partition@0 {
+            label = "storage";
+            reg = <0x00000000 0x00200000>;
+        };
+    };
+};

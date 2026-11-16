@@ -217,6 +217,7 @@ address when a border router advertises an on-mesh prefix.
 | UART | `Embedded.Hardware.UART`, `Embedded.IO.BufferedUART` | [`nrf52_uart.bmx`](examples/nrf52_uart.bmx), [`nrf52_buffered_uart.bmx`](examples/nrf52_buffered_uart.bmx) |
 | Watchdog and power | `NRF52.Hardware.Watchdog`, `Embedded.System.Power`, `NRF52.System.Power` | [`nrf52_watchdog.bmx`](examples/nrf52_watchdog.bmx), [`nrf52_system_off.bmx`](examples/nrf52_system_off.bmx) |
 | BLE peripheral and central | `NRF52.Network.BLE`, `Embedded.Network.BLE` | [`nrf52_ble_gatt.bmx`](examples/nrf52_ble_gatt.bmx), [`nrf52_ble_gatt_client.bmx`](examples/nrf52_ble_gatt_client.bmx) |
+| XIAO external flash | `NRF52.Storage.LittleFS`, `BRL.FileSystem` | [`nrf52_xiao_storage.bmx`](examples/nrf52_xiao_storage.bmx) |
 
 ## Board settings and limits
 
@@ -244,6 +245,12 @@ The peripheral routes in that table describe the Tenstar profile. The XIAO profi
 The XIAO's D0 and D1 are also ADC inputs; using UART hardware flow control claims those pads. The Sense variants' IMU and microphone are not yet wrapped by this module. The IMU's internal I²C0 bus is disabled in this application configuration because UART0 shares that hardware instance; the external D4/D5 I²C1 bus remains available.
 
 Plus boards add D11–D19 at P0.15, P0.19, P1.01, P0.09, P0.10, P0.31, P1.03, P1.05, and P1.07 respectively. D14/P0.09 and D15/P0.10 share the NFC function and need their UICR configuration checked before using them as GPIO. D16/P0.31 is the battery-sense input; avoid reading it until the board's battery-enable circuit is configured appropriately.
+
+### XIAO external storage
+
+All four XIAO profiles expose the separate 2 MiB QSPI flash through `NRF52.Storage.LittleFS`. Importing the module mounts it and selects it as the default `BRL.FileSystem` backend. Ordinary paths and `file::` or `littlefs::` paths refer to the same volume. Use `LoadText`, `SaveText`, `ReadFile`, `WriteFile`, and the other standard file functions. This is independent of the nRF52840's internal application flash and UF2 bootloader. LittleFS is included only when the module is imported; the Zephyr workspace must contain the pinned `littlefs` module (`west update littlefs`).
+
+The module formats the chip automatically only if every byte is erased. If existing data cannot be mounted, `LittleFSIsMounted()` is false and `LittleFSLastError()` reports the error; the data is left intact. `FormatLittleFS()` explicitly erases the whole external chip and mounts a new filesystem. Filesystem timestamps are not currently stored, so `FileStat` reports zero times and `SetFileTime` is unsupported. The Tenstar profile has no external QSPI chip and does not support this module.
 
 Advanced Zephyr Kconfig changes can be supplied through `BMX_NRF52_EXTRA_CONF_FILE`, set to the absolute path of an additional `.conf` file before building. The BLE fragment is still added automatically when the BLE module is imported.
 
