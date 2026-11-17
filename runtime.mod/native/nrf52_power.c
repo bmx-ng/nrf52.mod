@@ -51,6 +51,13 @@ int32_t bmx_embedded_power_set_unused_pins_low_leakage(uint64_t exclude_mask) {
     return POWER_UNAVAILABLE;
 }
 
+int32_t bmx_embedded_power_set_sleep_gpio_retention(uint32_t pin,
+        int32_t enabled) {
+    (void)pin;
+    (void)enabled;
+    return POWER_UNAVAILABLE;
+}
+
 int32_t bmx_nrf52_system_off(void) {
     if (!k_can_yield()) return POWER_NOT_PERMITTED;
     sys_poweroff();
